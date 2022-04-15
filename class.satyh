@@ -2,6 +2,8 @@
 @require: color
 @require: list
 @require: annot
+@require: footnote-scheme
+@require: vdecoset
 
 module Cls : sig
 
@@ -35,7 +37,7 @@ module Cls : sig
   direct +section : [string?; bool?; string?; inline-text; block-text] block-cmd
   direct +p : [inline-text] block-cmd
 
-%  direct \footnote : [inline-text] inline-cmd
+  direct \footnote : [inline-text] inline-cmd
 %
 %  direct +figure : [string?; inline-text; block-text] block-cmd
 %  direct +table : [string?; inline-text; block-text] block-cmd
@@ -305,6 +307,10 @@ end = struct
     let text-width = c#width-page -' c#left-margin -' c#right-margin in
     let ctx = make-ctx text-width in
 
+    % 脚注の番号のリセットを行う
+    % これを+sectionなどに移せば章ごとに番号をリセットできたりする（はず）
+    let () = FootnoteScheme.initialize () in
+
     % 参照系を確定させるために早めに評価する
     let bb-main = read-block ctx main in
 
@@ -312,6 +318,9 @@ end = struct
     let page = UserDefinedPaper(c#width-page, c#height-page) in
     % コンテンツを表示させる部分の指定
     let pagecontf pbinfo =
+      % 脚注のブロック部分をページ下部に埋め込む処理に関するフックをやるはず
+      % ページごとに一回登場する必要がある
+      let () = FootnoteScheme.start-page () in
       (|
         text-height = c#height-page -' (c#top-margin +' c#bottom-margin);
         text-origin = (c#left-margin, c#top-margin);
@@ -635,5 +644,46 @@ end = struct
     let () = sec-num <- old-sec-num in
     title-bb +++ bb
 
+
+  let-inline ctx \footnote content =
+    let font-size = get-font-size ctx in
+    % *1などの表示部分
+    let ibf num =
+      let ctx =
+        ctx |> set-font-size (font-size *' 0.75)
+            |> set-manual-rising (font-size *' 0.25)
+      in
+      let num-it =
+        num
+        |> arabic
+        |> embed-string
+      in
+      read-inline ctx {†#num-it;}
+    in
+    % ページ下部に出現するブロック
+    let bbf num =
+      let ctx =
+        ctx |> set-font-size (font-size *' 0.85)
+            |> set-paragraph-margin (font-size *' 0.5) (font-size *' 0.5)
+      in
+      let num-ib =
+        num
+        |> arabic
+        |> embed-string
+        |> read-inline ctx
+      in
+      let content-ib = read-inline ctx content in
+      block-frame-breakable ctx
+        ((get-natural-width num-ib) +' font-size, 0pt, 0pt, 0pt)
+        VDecoSet.empty
+        (fun ctx -> (
+          line-break false false ctx (
+            inline-skip (((get-natural-width num-ib) +' font-size) *' -1.0) ++
+            num-ib ++ inline-skip font-size ++
+            content-ib ++ inline-fil
+          )
+        ))
+    in
+    FootnoteScheme.main ctx ibf bbf
 
 end
