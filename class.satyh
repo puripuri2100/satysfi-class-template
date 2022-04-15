@@ -445,7 +445,9 @@ end = struct
               in
               let title-ib = read-inline ctx title-it in
               let page-num-ib = read-inline ctx page-num in
-              inline-skip indent ++ num-ib ++ title-ib ++ inline-fil ++ page-num-ib
+              inline-skip indent ++ num-ib ++
+              inline-skip (font-size-normal ()) ++ title-ib ++
+              inline-fil ++ page-num-ib
             )
             | n -> (
               let indent =
@@ -464,11 +466,15 @@ end = struct
               let fil-dots =
                 make-dots-line ctx (
                   get-text-width ctx -'
-                  get-natural-width (inline-skip indent ++ num-ib ++ title-ib) -'
+                  get-natural-width (
+                    inline-skip indent ++ num-ib ++
+                    inline-skip (font-size-normal ()) ++
+                    title-ib
+                  ) -'
                   get-natural-width page-num-ib
                 )
               in
-              inline-skip indent ++ num-ib ++ title-ib ++ fil-dots ++ inline-fil ++ page-num-ib
+              inline-skip indent ++ num-ib ++ inline-skip (font-size-normal ()) ++ title-ib ++ fil-dots ++ inline-fil ++ page-num-ib
             )
           in
             line-break true true ctx main-ib
