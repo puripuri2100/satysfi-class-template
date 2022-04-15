@@ -1,0 +1,639 @@
+@require: math
+@require: color
+@require: list
+@require: annot
+
+module Cls : sig
+
+  type config
+
+  val document : config -> block-text -> document
+
+  val default-config : config
+  val set-title : inline-text -> config -> config
+  val set-title-lst : inline-text list -> config -> config
+  val set-title-str : string -> config -> config
+  val set-author : inline-text -> config -> config
+  val set-author-str : string -> config -> config
+  val set-date : inline-text -> config -> config
+  val set-subject : string -> config -> config
+  val set-keywords : string list -> config -> config
+  val set-show-title : bool -> config -> config
+  val set-show-toc : bool -> config -> config
+  val set-show-header : bool -> config -> config
+  val set-show-footer : bool -> config -> config
+  val set-title-page : bool -> config -> config
+  val set-normal-font-size : length -> config -> config
+  val set-height-page : length -> config -> config
+  val set-width-page : length -> config -> config
+  val set-left-margin : length -> config -> config
+  val set-right-margin : length -> config -> config
+  val set-top-margin : length -> config -> config
+  val set-bottom-margin : length -> config -> config
+
+
+  direct +section : [string?; bool?; string?; inline-text; block-text] block-cmd
+  direct +p : [inline-text] block-cmd
+
+%  direct \footnote : [inline-text] inline-cmd
+%
+%  direct +figure : [string?; inline-text; block-text] block-cmd
+%  direct +table : [string?; inline-text; block-text] block-cmd
+%
+%  direct \url : [string] inline-cmd
+%
+%  direct \ref : [string] inline-cmd
+%  direct \ref-page : [string] inline-cmd
+%
+%  direct \cite : [string list] inline-cmd
+
+end = struct
+
+  % 設定の中身は単なるレコードだが、隠蔽することによって公報互換性を保てるようにする
+  type config = (|
+    title         : inline-text list;
+    title-str     : string option;
+    author        : inline-text option;
+    author-str    : string option;
+    date          : inline-text option;
+    subject       : string option;
+    keywords      : string list;
+    show-title    : bool;
+    show-toc      : bool;
+    show-footer   : bool;
+    show-header   : bool;
+    title-page    : bool;
+    normal-font-size : length;
+    height-page   : length;
+    width-page    : length;
+    left-margin   : length;
+    right-margin  : length;
+    top-margin    : length;
+    bottom-margin : length;
+  |)
+
+
+  let default-config = (|
+    title         = [];
+    title-str     = None;
+    author        = None;
+    author-str    = None;
+    date          = None;
+    subject       = None;
+    keywords      = [];
+    show-title    = true;
+    show-toc      = false;
+    show-footer   = true;
+    show-header   = true;
+    title-page    = false;
+    normal-font-size = 12pt;
+    height-page   = 297mm;
+    width-page    = 210mm;
+    left-margin   = (210mm -' (12pt *' 40.0)) *' 0.5;
+    right-margin  = (210mm -' (12pt *' 40.0)) *' 0.5;
+    top-margin    = 25mm;
+    bottom-margin = 25mm;
+  |)
+
+
+  % configの中身を書き換えていく関数
+  % こいつらの定義は愚直にやるしかない
+  let set-title title config =
+    (| config with title = [title]; |)
+
+  let set-title-lst title-lst config =
+    (| config with title = title-lst; |)
+
+  let set-title-str title-str config =
+    (| config with title-str = Some(title-str); |)
+
+  let set-author author config =
+    (| config with author = Some(author); |)
+
+  let set-author-str author-str config =
+    (| config with author-str = Some(author-str); |)
+
+  let set-date date config =
+    (| config with date = Some(date); |)
+
+  let set-subject subject config =
+    (| config with subject = Some(subject); |)
+
+  let set-keywords keywords config =
+    (| config with keywords = keywords; |)
+
+  let set-show-title show-title config =
+    (| config with show-title = show-title; |)
+
+  let set-show-toc show-toc config =
+    (| config with show-toc = show-toc; |)
+
+  let set-show-header show-header config =
+    (| config with show-header = show-header; |)
+
+  let set-show-footer show-footer config =
+    (| config with show-footer = show-footer; |)
+
+  let-mutable is-title-page-ref <- false
+  let set-title-page title-page config =
+    let () = is-title-page-ref <- title-page in
+    (| config with title-page = title-page; |)
+
+  let-mutable normal-font-size-ref <- 12pt
+  let set-normal-font-size normal-font-size config =
+    let () = normal-font-size-ref <- normal-font-size in
+    (| config with normal-font-size = normal-font-size; |)
+
+  let set-height-page height-page config =
+    (| config with height-page = height-page; |)
+
+  let set-width-page width-page config =
+    (| config with width-page = width-page; |)
+
+  let set-left-margin left-margin config =
+    (| config with left-margin = left-margin; |)
+
+  let set-right-margin right-margin config =
+    (| config with right-margin = right-margin; |)
+
+  let set-top-margin top-margin config =
+    (| config with top-margin = top-margin; |)
+
+  let set-bottom-margin bottom-margin config =
+    (| config with bottom-margin = bottom-margin; |)
+
+
+  % フォントサイズ補正
+  let font-ratio-latin = 1.
+  let font-ratio-cjk = 0.88
+
+  % (フォント名, フォントサイズ補正, ベースライン補正)
+  let font-latin-roman = (`Junicode`, font-ratio-latin, 0.)
+  let font-latin-bold = (`Junicode-b`, font-ratio-latin, 0.)
+  let font-latin-italic = (`Junicode-it`, font-ratio-latin, 0.)
+  let font-latin-sans = (`lmsans`, font-ratio-latin, 0.)
+  let font-latin-mono = (`lmmono`, font-ratio-latin, 0.)
+  let font-cjk-mincho = (`ipaexm`, font-ratio-cjk, 0.)
+  let font-cjk-gothic = (`ipaexg`, font-ratio-cjk, 0.)
+
+  % フォント変更用関数
+  let set-cjk-font font-name ctx =
+    ctx |> set-font HanIdeographic font-name
+        |> set-font Kana font-name
+
+
+  let set-latin-font font-name ctx =
+    ctx |> set-font Latin font-name
+
+
+  % フォントサイズ
+  let font-size-normal () = !normal-font-size-ref
+  let font-size-title () = !normal-font-size-ref *' 1.6
+  let font-size-author () = !normal-font-size-ref *' 1.3
+  let font-size-date () = !normal-font-size-ref *' 1.3
+  let font-size-section () = !normal-font-size-ref *' 1.6
+  let font-size-subsection () = !normal-font-size-ref *' 1.3
+  let font-size-subsubsection () = !normal-font-size-ref *' 1.15
+
+
+  let make-ctx width =
+    get-initial-context width (command \math)
+      |> set-font-size (font-size-normal ())
+      |> set-dominant-wide-script Kana
+      |> set-language Kana Japanese
+      |> set-language HanIdeographic Japanese
+      |> set-cjk-font font-cjk-mincho
+      |> set-dominant-narrow-script Latin
+      |> set-language Latin English
+      |> set-latin-font font-latin-roman
+      |> set-hyphen-penalty 100
+      |> set-math-font `lmodern`
+      |> set-manual-rising 0pt % 文字の上下の補正値
+      |> set-text-color Color.black
+
+
+    % unit型
+    % satysfi-auxファイルにkey-value形式で書きだされる
+    % (label ^ `:num`)がkeyでtitleがvalue
+    let register-cross-reference-num label title =
+      register-cross-reference (label ^ `:num`) title
+
+
+    % inline-boxes型
+    % satysfi-auxファイルにkey-value形式で書きだすが、
+    % ページ番号を取得するためにblock-nilと同じ挙動をするblock-boxes
+    % をフックとして埋め込む必要がある
+    let register-cross-reference-page label =
+      if !is-title-page-ref then
+        hook-page-break (fun pbinfo _ -> register-cross-reference (label ^ `:page`) (arabic (pbinfo#page-number - 1)))
+      else
+        hook-page-break (fun pbinfo _ -> register-cross-reference (label ^ `:page`) (arabic pbinfo#page-number))
+
+
+
+  % 取得用関数 返り値はどちらもstring型
+  % satysfi-auxファイルからkeyに合致するvalueを取得する
+  % 対応するものが無い場合は`?`を返すようにする
+  % そうすれば「これについては?ページ参照し」などのように、
+  % 一応自然に見える（というかLaTeXの多くのクラスファイルがそういう挙動をするはず）
+  let get-cross-reference-num label =
+    match get-cross-reference (label ^ `:num`) with
+      | None -> `?`
+      | Some (label) -> label
+
+
+  let get-cross-reference-page label =
+    match get-cross-reference (label ^ `:page`) with
+      | None -> `?`
+      | Some (label) -> label
+
+
+  % ハイパーリンクのキー登録とキー取得
+
+  % 登録 string -> inline-boxes -> inline-boxes
+  % ここのlength * length * length * lengthを変えると
+  % キーが登録されたibの周りに余白が入る
+  let register-doc-hyper-link label ib =
+    inline-frame-breakable (0pt, 0pt, 0pt, 0pt)
+      (Annot.register-location-frame label) ib
+
+
+  % 取得 string -> inline-boxes -> inline-boxes
+  % ここのlength * length * length * lengthを変えると
+  % ジャンプできるibの周りに余白が入る
+  % また、NoneをSome((0.5pt, Color.blue))などにすると、
+  % そのような枠線が周りに着くことになる
+  % この枠線は印刷されない（ことになっている）
+  let doc-hyper-link label ib =
+    inline-frame-breakable (0pt, 0pt, 0pt, 0pt)
+      (Annot.link-to-location-frame label None) ib
+
+
+  % \ref \ref-page 定義
+  let-inline ctx \ref label =
+    doc-hyper-link label
+      (read-inline ctx (embed-string (get-cross-reference-num label)))
+
+
+  let-inline ctx \ref-page label =
+    doc-hyper-link label
+      (read-inline ctx (embed-string (get-cross-reference-page label)))
+
+
+
+
+  let-mutable toc-ref <- []
+  let-mutable outline-ref <- []
+
+  % 目次のタイトルとページ番号の間に入れるドットを生成する
+  let-rec repeat-inline n ib =
+    if n <= 0 then
+      inline-nil
+    else
+      ib ++ (repeat-inline (n - 1) ib)
+
+
+  let make-dots-line ctx text-width =
+    let ib = read-inline ctx {.} ++ inline-skip 1pt in
+    % 丸め込み時の誤差とoverfull対策で-1している
+    let n = round (text-width /' (get-natural-width ib)) - 1 in
+    repeat-inline n ib
+
+
+  let document c main =
+    % 参照の中身を確定させるために、configの方を先に評価しないといけない
+    let text-width = c#width-page -' c#left-margin -' c#right-margin in
+    let ctx = make-ctx text-width in
+
+    % 参照系を確定させるために早めに評価する
+    let bb-main = read-block ctx main in
+
+    % ページサイズ
+    let page = UserDefinedPaper(c#width-page, c#height-page) in
+    % コンテンツを表示させる部分の指定
+    let pagecontf pbinfo =
+      (|
+        text-height = c#height-page -' (c#top-margin +' c#bottom-margin);
+        text-origin = (c#left-margin, c#top-margin);
+      |)
+    in
+    % ヘッダーとフッターの設定
+    let pagepartsf pbinfo =
+      let page-num =
+        if c#title-page then
+          embed-string (arabic (pbinfo#page-number - 1))
+        else
+          embed-string (arabic pbinfo#page-number)
+      in
+      let ctx = set-paragraph-margin 0pt 0pt ctx in
+      let header = block-nil in
+      let header-origin = (c#left-margin, 0pt) in
+      let footer =
+        if c#title-page && pbinfo#page-number == 1 then
+          block-nil
+        else
+          if c#show-footer then
+            let footer-main = line-break true true ctx (inline-fil ++ (read-inline ctx {#page-num;}) ++ inline-fil)
+            in
+              block-skip (c#bottom-margin *' 0.2) +++ footer-main
+          else
+            block-nil
+      in
+      let footer-origin = (c#left-margin, c#height-page -' c#bottom-margin) in
+      (|
+        header-content = header;
+        header-origin = header-origin;
+        footer-content = footer;
+        footer-origin = footer-origin;
+      |)
+    in
+
+    let bb-title =
+      if c#show-title then
+        % TODO: タイトルを作成する
+        let title-block = (
+            let ctx =
+              ctx |> set-font-size (font-size-title ())
+                  |> set-cjk-font font-cjk-gothic
+                  |> set-latin-font font-latin-sans
+            in
+            let f it =
+              line-break false false ctx (
+                inline-fil ++ read-inline ctx it ++ inline-fil
+              )
+            in
+            c#title
+            |> List.map f
+            |> List.fold-left (+++) block-nil
+          )
+        in
+        let author-block =
+          match c#author with
+          | None -> block-nil
+          | Some(author) -> (
+            let ctx =
+              ctx |> set-font-size (font-size-author ())
+            in
+            line-break false false ctx (
+              inline-fil ++ read-inline ctx author ++ inline-fil
+            )
+          )
+        in
+        let date-block =
+          match c#date with
+          | None -> block-nil
+          | Some(date) -> (
+            let ctx =
+              ctx |> set-font-size (font-size-date ())
+            in
+            line-break false false ctx (
+              inline-fil ++ read-inline ctx date ++ inline-fil
+            )
+          )
+        in
+        if c#title-page then
+          let main =
+            title-block +++
+            author-block +++
+            date-block
+          in
+          let text-height =
+            c#height-page -' c#top-margin -' c#bottom-margin
+          in
+            block-skip ((text-height -' get-natural-length main) *' 0.35)
+            +++ main +++ clear-page
+        else
+          title-block +++
+          author-block +++
+          date-block +++
+          block-skip (font-size-normal () *' 1.0)
+      else
+        block-nil
+    in
+
+    let bb-toc =
+      if c#show-toc then
+        % ここを弄ると目次の表示を変化させられる
+        let f (sec-num-lst, label, num, title-it) =
+          let page-num =
+            label
+            |> get-cross-reference-page
+            |> embed-string
+          in
+          let main-ib =
+            match List.length sec-num-lst with
+            | 1 -> (
+              let indent = font-size-section () in
+              let ctx =
+                ctx |> set-font-size (font-size-subsection ())
+                    |> set-cjk-font font-cjk-gothic
+                    |> set-latin-font font-latin-sans
+              in
+              let num-ib =
+                num
+                |> embed-string
+                |> read-inline ctx
+              in
+              let title-ib = read-inline ctx title-it in
+              let page-num-ib = read-inline ctx page-num in
+              inline-skip indent ++ num-ib ++ title-ib ++ inline-fil ++ page-num-ib
+            )
+            | n -> (
+              let indent =
+                font-size-section () +' font-size-normal () *' (float (n - 1))
+              in
+              let ctx =
+                ctx |> set-font-size (font-size-normal ())
+              in
+              let num-ib =
+                num
+                |> embed-string
+                |> read-inline ctx
+              in
+              let title-ib = read-inline ctx title-it in
+              let page-num-ib = read-inline ctx page-num in
+              let fil-dots =
+                make-dots-line ctx (
+                  get-text-width ctx -'
+                  get-natural-width (inline-skip indent ++ num-ib ++ title-ib) -'
+                  get-natural-width page-num-ib
+                )
+              in
+              inline-skip indent ++ num-ib ++ title-ib ++ fil-dots ++ inline-fil ++ page-num-ib
+            )
+          in
+            line-break true true ctx main-ib
+        in
+        let toc-main =
+          !toc-ref
+          |> List.reverse
+          |> List.map f
+          |> List.fold-left (+++) block-nil
+        in
+        let toc-title =
+          let ctx =
+            ctx |> set-font-size (font-size-section ())
+                |> set-cjk-font font-cjk-gothic
+                |> set-latin-font font-latin-sans
+          in
+          ((read-inline ctx {目次}) ++ inline-fil)
+          |> line-break true false ctx
+        in
+        if c#title-page then
+          toc-title +++ toc-main +++ clear-page
+        else
+          toc-title +++ toc-main +++ block-skip (font-size-normal ())
+      else
+        block-nil
+    in
+
+    let doc-main = page-break page pagecontf pagepartsf (bb-title +++ bb-toc +++ bb-main) in
+
+    % ラベルを設置する
+    let () = register-outline (List.reverse !outline-ref) in
+    % ドキュメント情報を埋め込む
+    let document-information =
+      let doc-info-title =
+        match c#title-str with
+        | Some(s) -> Some(s)
+        | None -> (
+          match c#title with
+          | [] -> None
+          | lst -> (
+            Some(
+              lst
+              |> List.map (read-inline ctx)
+              |> List.fold-left (++) inline-nil
+              |> extract-string
+            )
+          )
+        )
+      in
+      let doc-info-author =
+        match c#author-str with
+        | Some(s) -> Some(s)
+        | None -> (
+          match c#author with
+          | None -> None
+          | Some(it) -> (
+            Some(
+              it
+              |> read-inline ctx
+              |> extract-string
+            )
+          )
+        )
+      in
+      (|
+        title = doc-info-title;
+        author = doc-info-author;
+        subject = c#subject;
+        keywords = c#keywords;
+      |)
+    in
+    let () = register-document-information document-information in
+      doc-main
+
+
+  let indent ctx =
+    let font-size = get-font-size ctx in
+    inline-skip (font-size *' font-ratio-cjk)
+
+  let-block ctx +p it =
+    let ib = read-inline ctx it in
+    line-break true true ctx ((indent ctx) ++ ib ++ inline-fil)
+
+
+  let-mutable sec-num-lst <- []
+  let-mutable sec-num <- 0
+
+
+  % TODO
+  let section-title-format ctx sec-num-lst label-opt is-omit-num outline-title-opt title =
+    let title-ctx =
+      let font-size =
+        match List.length sec-num-lst with
+        | 1 -> font-size-section ()
+        | 2 -> font-size-subsection ()
+        | _ -> font-size-subsubsection ()
+      in
+      ctx |> set-cjk-font font-cjk-gothic
+          |> set-latin-font font-latin-sans
+          |> set-font-size font-size
+    in
+    let title-ib =
+      read-inline title-ctx title
+    in
+    let outline-title =
+      match outline-title-opt with
+      | Some(s) -> s
+      | None -> extract-string title-ib
+    in
+    let label =
+      match label-opt with
+      | Some(s) -> s
+      | None -> (
+        `sec:` ^ (
+          sec-num-lst
+          |> List.reverse
+          |> List.map arabic
+          |> List.fold-right (fun s1 s2 -> s1^ `.` ^ s2) ` `
+        )
+      )
+    in
+    let num =
+      if is-omit-num then
+        ` `
+      else
+        % ここを弄れば節番号の表示を弄れる
+        % 例えば階層が一番上なら
+        % (arabic n ^ `章`)にする、とか
+        match List.reverse sec-num-lst with
+        | [] -> ` `
+        | [n] -> arabic n
+        | _ -> (
+          sec-num-lst
+          |> List.reverse
+          |> List.map arabic
+          |> List.fold-right (fun s1 s2 -> s1^ `.` ^ s2) ` `
+        )
+    in
+    let is-open = (List.length sec-num-lst) <= 3 in
+    let () =
+      outline-ref <- (List.length sec-num-lst, num ^ #` `# ^ outline-title, label, is-open) :: !outline-ref
+    in
+    let () = register-cross-reference-num label num in
+    let () = toc-ref <- (sec-num-lst, label, num, title) :: !toc-ref in
+    let num-ib =
+      num
+      |> embed-string
+      |> read-inline title-ctx
+    in
+    let ib-hook = register-cross-reference-page label in
+    let main =
+      num-ib ++ ib-hook ++ inline-skip (font-size-normal ()) ++ title-ib
+    in
+    register-doc-hyper-link label main
+
+  let-block ctx +section ?:label-opt ?:is-omit-num-opt ?:outline-title-opt title inner =
+    let () = sec-num <- !sec-num + 1 in
+    let old-sec-num-lst = !sec-num-lst in
+    let () = sec-num-lst <- !sec-num::!sec-num-lst in
+    let old-sec-num = !sec-num in
+    let is-omit-num =
+      match is-omit-num-opt with
+      | Some(b) -> b
+      | None -> false
+    in
+    let title-ib =
+      section-title-format ctx (List.reverse !sec-num-lst) label-opt is-omit-num outline-title-opt title
+    in
+    let title-bb = line-break true false ctx (title-ib ++ inline-fil) in
+    let () = sec-num <- 0 in
+    let bb = read-block ctx inner in
+    let () = sec-num-lst <- old-sec-num-lst in
+    let () = sec-num <- old-sec-num in
+    title-bb +++ bb
+
+
+end

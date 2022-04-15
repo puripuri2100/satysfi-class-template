@@ -1,0 +1,25 @@
+@import: class
+% @require: class-template/class-template
+
+
+Cls.document (
+  Cls.default-config
+  |> Cls.set-title {あは}
+  |> Cls.set-author {\@puripuri2100}
+  |> Cls.set-show-toc true
+  |> Cls.set-title-page false
+) '<
+  +section {タイトル} <
+    +p{p}
+    +section {タイトル2} <
+      +p{hoge}
+      +section {タイトル3} <
+        +p{hogehoge}
+      >
+    >
+    +section {タイトル4} <
+      +p{fuga}
+    >
+  >
+>
+
