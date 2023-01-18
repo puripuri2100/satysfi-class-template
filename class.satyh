@@ -36,6 +36,8 @@ module Cls : sig
   val set-right-margin : length -> config -> config
   val set-top-margin : length -> config -> config
   val set-bottom-margin : length -> config -> config
+  val set-multicolumn : int -> config -> config
+  val set-columnsep : length -> config -> config
 
 
   direct +section : [string?; bool?; string?; inline-text; block-text] block-cmd
@@ -83,6 +85,8 @@ end = struct
     right-margin  : length;
     top-margin    : length;
     bottom-margin : length;
+    multicolumn   : int;
+    columnsep     : length;
   |)
 
 
@@ -106,6 +110,8 @@ end = struct
     right-margin  = (210mm -' (12pt *' 40.0)) *' 0.5;
     top-margin    = 25mm;
     bottom-margin = 25mm;
+    multicolumn   = 1;
+    columnsep     = 20pt;
   |)
 
 
@@ -174,6 +180,12 @@ end = struct
 
   let set-bottom-margin bottom-margin config =
     (| config with bottom-margin = bottom-margin; |)
+
+  let set-multicolumn multicolumn config =
+    (| config with multicolumn = multicolumn; |)
+
+  let set-columnsep columnsep config =
+    (| config with columnsep = columnsep; |)
 
 
   % フォントサイズ補正
@@ -323,6 +335,8 @@ end = struct
     let n = round (text-width /' (get-natural-width ib)) - 1 in
     repeat-inline n ib
 
+  let-mutable all-text-width-ref <- 0pt
+
   % 浮動図のための可変値
   % 出力したいblock-boxesとそれが入力されたページ番号の組のリスト
   let-mutable float-boxes <- []
@@ -350,7 +364,20 @@ end = struct
 
   let document c main =
     % 参照の中身を確定させるために、configの方を先に評価しないといけない
-    let text-width = c#width-page -' c#left-margin -' c#right-margin in
+    let all-text-width = c#width-page -' c#left-margin -' c#right-margin in
+    let () = all-text-width-ref <- all-text-width in
+    let text-width =
+      (all-text-width -' c#columnsep *' (float (c#multicolumn - 1))) *' (1.0 /. float c#multicolumn)
+    in
+    let seps =
+      let-rec sub multicolumn =
+        if multicolumn >= c#multicolumn then
+          []
+        else
+          ((text-width +' c#columnsep) *' (float (multicolumn))) :: sub (multicolumn + 1)
+      in
+      sub 1
+    in
     let text-height = c#height-page -' (c#top-margin +' c#bottom-margin) in
     let top-pad = 20pt in
     let ctx = make-ctx text-width in
@@ -366,6 +393,7 @@ end = struct
     let page = UserDefinedPaper(c#width-page, c#height-page) in
 
     let bb-title =
+      let ctx = make-ctx all-text-width in
       if c#show-title then
         % TODO: タイトルを作成する
         let title-block = (
@@ -430,6 +458,7 @@ end = struct
 
     % コンテンツを表示させる部分の指定
     let pagecontf pbinfo =
+      let ctx = make-ctx all-text-width in
       let () =
         if c#title-page && c#show-title then
           now-page-num <- pbinfo#page-number - 1
@@ -456,6 +485,7 @@ end = struct
     in
     % ヘッダーとフッターの設定
     let pagepartsf pbinfo =
+      let ctx = make-ctx all-text-width in
       let page-num = !now-page-num |> arabic |> embed-string in
       let ctx = set-paragraph-margin 0pt 0pt ctx in
       let header =
@@ -595,7 +625,7 @@ end = struct
       else
         bb-toc +++ bb-main
     in
-    let doc-main = page-break-multicolumn page [] columnhookf columnendhookf pagecontf pagepartsf (bb-main +++ bb-last) in
+    let doc-main = page-break-multicolumn page seps columnhookf columnendhookf pagecontf pagepartsf (bb-main +++ bb-last) in
 
     % ラベルを設置する
     let () = register-outline (List.reverse !outline-ref) in
@@ -789,6 +819,12 @@ end = struct
   let-mutable table-count <- 0
 
   let-block ctx +figure ?:labelopt ?:position-opt caption inner =
+    let ctx =
+      match position-opt with
+                    % headerに行くのでctxを専用に生成
+      | Some(Top) -> make-ctx !all-text-width-ref
+      | _ -> ctx
+    in
     let () = figure-count <- !figure-count + 1 in
     let num = arabic !figure-count in
     let label =
@@ -819,6 +855,12 @@ end = struct
 
 
   let-block ctx +table ?:labelopt ?:position-opt caption inner =
+    let ctx =
+      match position-opt with
+                    % headerに行くのでctxを専用に生成
+      | Some(Top) -> make-ctx !all-text-width-ref
+      | _ -> ctx
+    in
     let () = table-count <- !table-count + 1 in
     let num = arabic !table-count in
     let label =
