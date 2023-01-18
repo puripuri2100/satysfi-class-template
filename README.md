@@ -18,7 +18,7 @@ Supported basic functions for document creation.
 - url
 - manually hand ring for minor style changes
 
-See `doc/manual.saty` and `src/class.satyh` for more information
+See `demo.saty` and `class.satyh` for more information
 
 # LICENSE
 
