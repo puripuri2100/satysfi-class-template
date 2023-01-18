@@ -312,6 +312,10 @@ end = struct
     let n = round (text-width /' (get-natural-width ib)) - 1 in
     repeat-inline n ib
 
+  % 浮動図のための可変値
+  let-mutable float-boxes <- []
+  let-mutable is-last-page <- false
+  let-mutable now-page-num <- 0
 
   let document c main =
     % 参照の中身を確定させるために、configの方を先に評価しないといけない
@@ -513,7 +517,11 @@ end = struct
         block-nil
     in
 
-    let doc-main = page-break page pagecontf pagepartsf (bb-title +++ bb-toc +++ bb-main) in
+    let bb-last =
+      hook-page-break-block (fun _ _ -> (is-last-page <- true))
+    in
+
+    let doc-main = page-break page pagecontf pagepartsf (bb-title +++ bb-toc +++ bb-main +++ bb-last) in
 
     % ラベルを設置する
     let () = register-outline (List.reverse !outline-ref) in
@@ -619,7 +627,6 @@ end = struct
         | [n] -> arabic n
         | _ -> (
           sec-num-lst
-          |> List.reverse
           |> List.map arabic
           |> List.fold-right (fun s1 s2 -> s1^ `.` ^ s2) ` `
         )
