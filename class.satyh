@@ -418,7 +418,7 @@ end = struct
             c#height-page -' c#top-margin -' c#bottom-margin
           in
             block-skip ((text-height -' get-natural-length main) *' 0.35)
-            +++ main +++ clear-page
+            +++ main
         else
           title-block +++
           author-block +++
@@ -437,7 +437,12 @@ end = struct
           now-page-num <- pbinfo#page-number
       in
       let (bb, lst) = break-float-boxes !now-page-num (text-height -' top-pad) !float-boxes in
-      let float-len = get-natural-length bb in
+      let float-len =
+        if c#show-title && pbinfo#page-number == 1 then
+          get-natural-length bb-title
+        else
+          get-natural-length bb
+      in
       let top-pad =
         if List.length lst == List.length !float-boxes then
           0pt
@@ -454,9 +459,12 @@ end = struct
       let page-num = !now-page-num |> arabic |> embed-string in
       let ctx = set-paragraph-margin 0pt 0pt ctx in
       let header =
-        let (bb, new-float-boxes) = break-float-boxes !now-page-num (text-height -' top-pad) !float-boxes in
-        let () = float-boxes <- new-float-boxes in
-        bb
+        if c#show-title && pbinfo#page-number == 1 then
+          bb-title
+        else
+          let (bb, new-float-boxes) = break-float-boxes !now-page-num (text-height -' top-pad) !float-boxes in
+          let () = float-boxes <- new-float-boxes in
+          bb
       in
       let header-origin = (c#left-margin, c#top-margin) in
       let footer =
@@ -581,7 +589,13 @@ end = struct
       hook-page-break-block (fun _ _ -> (is-last-page <- true))
     in
 
-    let doc-main = page-break-multicolumn page [] columnhookf columnendhookf pagecontf pagepartsf (bb-title +++ bb-toc +++ bb-main +++ bb-last) in
+    let bb-main =
+      if c#show-title && c#title-page then
+        clear-page +++ bb-toc +++ bb-main
+      else
+        bb-toc +++ bb-main
+    in
+    let doc-main = page-break-multicolumn page [] columnhookf columnendhookf pagecontf pagepartsf (bb-main +++ bb-last) in
 
     % ラベルを設置する
     let () = register-outline (List.reverse !outline-ref) in
