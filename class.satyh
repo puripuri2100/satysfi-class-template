@@ -7,6 +7,10 @@
 
 module Cls : sig
 
+  type position
+  val top : position
+  val here : position
+
   type config
 
   val document : config -> block-text -> document
@@ -38,18 +42,25 @@ module Cls : sig
   direct +p : [inline-text] block-cmd
 
   direct \footnote : [inline-text] inline-cmd
-%
-%  direct +figure : [string?; inline-text; block-text] block-cmd
-%  direct +table : [string?; inline-text; block-text] block-cmd
-%
-%  direct \url : [string] inline-cmd
-%
-%  direct \ref : [string] inline-cmd
-%  direct \ref-page : [string] inline-cmd
+
+  direct +figure : [string?; position?; inline-text; block-text] block-cmd
+  direct +table : [string?; position?; inline-text; block-text] block-cmd
+
+  direct \url : [string] inline-cmd
+
+  direct \ref : [string] inline-cmd
+  direct \ref-page : [string] inline-cmd
 %
 %  direct \cite : [string list] inline-cmd
 
 end = struct
+
+  type position =
+    | Top
+    | Here
+
+  let top = Top
+  let here = Here
 
   % 設定の中身は単なるレコードだが、隠蔽することによって公報互換性を保てるようにする
   type config = (|
@@ -691,5 +702,59 @@ end = struct
         ))
     in
     FootnoteScheme.main ctx ibf bbf
+
+
+  let-mutable figure-count <- 0
+  let-mutable table-count <- 0
+
+  let-block ctx +figure ?:labelopt ?:position-opt caption inner =
+    let () = figure-count <- !figure-count + 1 in
+    let num = arabic !figure-count in
+    let label =
+      match labelopt with
+      | Some(label) -> label
+      | None -> `fig:` ^ num
+    in
+    let () = register-cross-reference-num label num in
+    let ib-hook = register-cross-reference-page label in
+    let fig-num-it = embed-string num in
+    let caption-ib =
+      inline-fil ++ read-inline ctx {図#fig-num-it;：#caption;} ++ ib-hook ++ inline-fil
+      |> register-doc-hyper-link label
+    in
+    read-block ctx inner +++ (line-break false true ctx caption-ib)
+
+
+  let-block ctx +table ?:labelopt ?:position-opt caption inner =
+    let () = table-count <- !table-count + 1 in
+    let num = arabic !figure-count in
+    let label =
+      match labelopt with
+      | Some(label) -> label
+      | None -> `table:` ^ num
+    in
+    let () = register-cross-reference-num label num in
+    let ib-hook = register-cross-reference-page label in
+    let fig-num-it = embed-string num in
+    let caption-ib =
+      inline-fil ++ read-inline ctx {表#fig-num-it;：#caption;} ++ ib-hook ++ inline-fil
+      |> register-doc-hyper-link label
+    in
+    (line-break false true ctx caption-ib) +++ read-block ctx inner
+
+
+
+  let-inline ctx \non-hyph str =
+    let s-lst = string-explode str in
+    let f i =
+      let char = string-unexplode [i] in
+      let ib = char |> embed-string |> read-inline ctx in
+      ib
+    in
+    s-lst
+    |> List.map f
+    |> List.fold-left (++) inline-nil
+
+  let-inline \url url = {\href (url) {\non-hyph(url);}}
 
 end
