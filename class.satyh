@@ -243,6 +243,17 @@ end = struct
         hook-page-break (fun pbinfo _ -> register-cross-reference (label ^ `:page`) (arabic pbinfo#page-number))
 
 
+    % block-boxes型
+    % satysfi-auxファイルにkey-value形式で書きだすが、
+    % ページ番号を取得するためにblock-nilと同じ挙動をするblock-boxes
+    % をフックとして埋め込む必要がある
+    let register-cross-reference-page-block label =
+      if !is-title-page-ref then
+        hook-page-break-block (fun pbinfo _ -> register-cross-reference (label ^ `:page`) (arabic (pbinfo#page-number - 1)))
+      else
+        hook-page-break-block (fun pbinfo _ -> register-cross-reference (label ^ `:page`) (arabic pbinfo#page-number))
+
+
 
   % 取得用関数 返り値はどちらもstring型
   % satysfi-auxファイルからkeyに合致するvalueを取得する
@@ -313,13 +324,35 @@ end = struct
     repeat-inline n ib
 
   % 浮動図のための可変値
+  % 出力したいblock-boxesとそれが入力されたページ番号の組のリスト
   let-mutable float-boxes <- []
   let-mutable is-last-page <- false
   let-mutable now-page-num <- 0
 
+  % 浮動図の出力を決める
+  % 出力する部分のblock-boxesと新しいfloat-boxesの値を返す
+  let break-float-boxes now-page-num text-height float-boxes =
+    let-rec sub bb float-boxes =
+      match float-boxes with
+      | [] -> (bb, [])
+      | (pageno, float-box)::xs -> (
+        if pageno >= now-page-num then
+          (bb, List.reverse float-boxes)
+        else
+          let new-bb = bb +++ float-box in
+          if get-natural-length new-bb >' text-height then
+            (bb, List.reverse float-boxes)
+          else
+            sub new-bb xs
+      )
+    in
+    sub block-nil (List.reverse float-boxes)
+
   let document c main =
     % 参照の中身を確定させるために、configの方を先に評価しないといけない
     let text-width = c#width-page -' c#left-margin -' c#right-margin in
+    let text-height = c#height-page -' (c#top-margin +' c#bottom-margin) in
+    let top-pad = 20pt in
     let ctx = make-ctx text-width in
 
     % 脚注の番号のリセットを行う
@@ -331,46 +364,6 @@ end = struct
 
     % ページサイズ
     let page = UserDefinedPaper(c#width-page, c#height-page) in
-    % コンテンツを表示させる部分の指定
-    let pagecontf pbinfo =
-      % 脚注のブロック部分をページ下部に埋め込む処理に関するフックをやるはず
-      % ページごとに一回登場する必要がある
-      let () = FootnoteScheme.start-page () in
-      (|
-        text-height = c#height-page -' (c#top-margin +' c#bottom-margin);
-        text-origin = (c#left-margin, c#top-margin);
-      |)
-    in
-    % ヘッダーとフッターの設定
-    let pagepartsf pbinfo =
-      let page-num =
-        if c#title-page then
-          embed-string (arabic (pbinfo#page-number - 1))
-        else
-          embed-string (arabic pbinfo#page-number)
-      in
-      let ctx = set-paragraph-margin 0pt 0pt ctx in
-      let header = block-nil in
-      let header-origin = (c#left-margin, 0pt) in
-      let footer =
-        if c#title-page && pbinfo#page-number == 1 then
-          block-nil
-        else
-          if c#show-footer then
-            let footer-main = line-break true true ctx (inline-fil ++ (read-inline ctx {#page-num;}) ++ inline-fil)
-            in
-              block-skip (c#bottom-margin *' 0.2) +++ footer-main
-          else
-            block-nil
-      in
-      let footer-origin = (c#left-margin, c#height-page -' c#bottom-margin) in
-      (|
-        header-content = header;
-        header-origin = header-origin;
-        footer-content = footer;
-        footer-origin = footer-origin;
-      |)
-    in
 
     let bb-title =
       if c#show-title then
@@ -431,6 +424,73 @@ end = struct
           author-block +++
           date-block +++
           block-skip (font-size-normal () *' 1.0)
+      else
+        block-nil
+    in
+
+    % コンテンツを表示させる部分の指定
+    let pagecontf pbinfo =
+      let () =
+        if c#title-page && c#show-title then
+          now-page-num <- pbinfo#page-number - 1
+        else
+          now-page-num <- pbinfo#page-number
+      in
+      let (bb, lst) = break-float-boxes !now-page-num (text-height -' top-pad) !float-boxes in
+      let float-len = get-natural-length bb in
+      let top-pad =
+        if List.length lst == List.length !float-boxes then
+          0pt
+        else
+          top-pad
+      in
+      (|
+        text-height = text-height -' float-len -' top-pad;
+        text-origin = (c#left-margin, c#top-margin +' float-len +' top-pad);
+      |)
+    in
+    % ヘッダーとフッターの設定
+    let pagepartsf pbinfo =
+      let page-num = !now-page-num |> arabic |> embed-string in
+      let ctx = set-paragraph-margin 0pt 0pt ctx in
+      let header =
+        let (bb, new-float-boxes) = break-float-boxes !now-page-num (text-height -' top-pad) !float-boxes in
+        let () = float-boxes <- new-float-boxes in
+        bb
+      in
+      let header-origin = (c#left-margin, c#top-margin) in
+      let footer =
+        if c#title-page && pbinfo#page-number == 1 then
+          block-nil
+        else
+          if c#show-footer then
+            let footer-main = line-break true true ctx (inline-fil ++ (read-inline ctx {#page-num;}) ++ inline-fil)
+            in
+              block-skip (c#bottom-margin *' 0.2) +++ footer-main
+          else
+            block-nil
+      in
+      let footer-origin = (c#left-margin, c#height-page -' c#bottom-margin) in
+      (|
+        header-content = header;
+        header-origin = header-origin;
+        footer-content = footer;
+        footer-origin = footer-origin;
+      |)
+    in
+
+    let columnhookf () =
+      % 脚注のブロック部分をページ下部に埋め込む処理に関するフックを実行
+      % ページごとに一回登場する必要がある
+      let () = FootnoteScheme.start-page () in
+      block-nil
+    in
+    let columnendhookf () =
+      if !is-last-page then
+        if List.length !float-boxes > 0 then
+          block-skip 0pt
+        else
+          block-nil
       else
         block-nil
     in
@@ -521,7 +581,7 @@ end = struct
       hook-page-break-block (fun _ _ -> (is-last-page <- true))
     in
 
-    let doc-main = page-break page pagecontf pagepartsf (bb-title +++ bb-toc +++ bb-main +++ bb-last) in
+    let doc-main = page-break-multicolumn page [] columnhookf columnendhookf pagecontf pagepartsf (bb-title +++ bb-toc +++ bb-main +++ bb-last) in
 
     % ラベルを設置する
     let () = register-outline (List.reverse !outline-ref) in
@@ -729,12 +789,24 @@ end = struct
       inline-fil ++ read-inline ctx {図#fig-num-it;：#caption;} ++ ib-hook ++ inline-fil
       |> register-doc-hyper-link label
     in
-    read-block ctx inner +++ (line-break false true ctx caption-ib)
+    let bb = read-block ctx inner +++ (line-break false true ctx caption-ib) in
+    match position-opt with
+    | Some(Top) -> (
+      if !is-title-page-ref then
+        hook-page-break-block (fun pbinfo _ -> (
+          float-boxes <- (pbinfo#page-number + 1, bb) :: !float-boxes
+        )) +++ block-skip 0pt
+      else
+        hook-page-break-block (fun pbinfo _ -> (
+          float-boxes <- (pbinfo#page-number, bb) :: !float-boxes
+        )) +++ block-skip 0pt
+    )
+    | _ -> bb
 
 
   let-block ctx +table ?:labelopt ?:position-opt caption inner =
     let () = table-count <- !table-count + 1 in
-    let num = arabic !figure-count in
+    let num = arabic !table-count in
     let label =
       match labelopt with
       | Some(label) -> label
@@ -747,7 +819,19 @@ end = struct
       inline-fil ++ read-inline ctx {表#fig-num-it;：#caption;} ++ ib-hook ++ inline-fil
       |> register-doc-hyper-link label
     in
-    (line-break false true ctx caption-ib) +++ read-block ctx inner
+    let bb = (line-break false true ctx caption-ib) +++ read-block ctx inner in
+    match position-opt with
+    | Some(Top) -> (
+      if !is-title-page-ref then
+        hook-page-break-block (fun pbinfo _ -> (
+          float-boxes <- (pbinfo#page-number + 1, bb) :: !float-boxes
+        )) +++ block-skip 0pt
+      else
+        hook-page-break-block (fun pbinfo _ -> (
+          float-boxes <- (pbinfo#page-number, bb) :: !float-boxes
+        )) +++ block-skip 0pt
+    )
+    | _ -> bb
 
 
 
