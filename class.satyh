@@ -29,6 +29,7 @@ module Cls : sig
   val set-show-header : bool -> config -> config
   val set-show-footer : bool -> config -> config
   val set-title-page : bool -> config -> config
+  val set-bib-page : bool -> config -> config
   val set-normal-font-size : length -> config -> config
   val set-height-page : length -> config -> config
   val set-width-page : length -> config -> config
@@ -81,6 +82,7 @@ end = struct
     show-footer   : bool;
     show-header   : bool;
     title-page    : bool;
+    bib-page      : bool;
     normal-font-size : length;
     height-page   : length;
     width-page    : length;
@@ -106,6 +108,7 @@ end = struct
     show-footer   = true;
     show-header   = true;
     title-page    = false;
+    bib-page      = false;
     normal-font-size = 12pt;
     height-page   = 297mm;
     width-page    = 210mm;
@@ -160,6 +163,11 @@ end = struct
   let set-title-page title-page config =
     let () = is-title-page-ref <- title-page in
     (| config with title-page = title-page; |)
+
+  let-mutable is-bib-page-ref <- false
+  let set-bib-page bib-page config =
+    let () = is-bib-page-ref <- bib-page in
+    (| config with bib-page = bib-page; |)
 
   let-mutable normal-font-size-ref <- 12pt
   let set-normal-font-size normal-font-size config =
@@ -944,7 +952,10 @@ end = struct
     in
     let header-ib = read-inline header-ctx header-text ++ inline-fil in
     let header = line-break true false header-ctx header-ib in
-    header +++ main
+    if !is-bib-page-ref then
+      clear-page +++ header +++ main
+    else
+      header +++ main
 
 
   let cite-scheme ctx key =
