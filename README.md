@@ -11,6 +11,7 @@ Supported basic functions for document creation.
 - title
 - table of contents
 - section
+- bibliography
 - floating figure
 - multi-column
 - reference
