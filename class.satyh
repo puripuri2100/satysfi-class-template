@@ -792,12 +792,13 @@ end = struct
         ctx |> set-font-size (font-size *' 0.75)
             |> set-manual-rising (font-size *' 0.25)
       in
+      let label = `footnote:` ^ (arabic num) in
       let num-it =
         num
         |> arabic
         |> embed-string
       in
-      read-inline ctx {†#num-it;}
+      (doc-hyper-link label (read-inline ctx {†#num-it;}))
     in
     % ページ下部に出現するブロック
     let bbf num =
@@ -805,11 +806,13 @@ end = struct
         ctx |> set-font-size (font-size *' 0.85)
             |> set-paragraph-margin (font-size *' 0.5) (font-size *' 0.5)
       in
+      let label = `footnote:` ^ (arabic num) in
       let num-ib =
         num
         |> arabic
         |> embed-string
         |> read-inline ctx
+        |> register-doc-hyper-link label
       in
       let content-ib = read-inline ctx content in
       block-frame-breakable ctx
