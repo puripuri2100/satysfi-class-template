@@ -37,7 +37,7 @@ Cls.document (
 
     +p{Integer eu placerat leo, eu pellentesque tellus. Etiam in velit massa. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Curabitur eu finibus turpis. Sed feugiat ante vitae nulla commodo condimentum. Nulla ut neque nisl. Maecenas sed urna lobortis, lacinia turpis vel, blandit velit. Suspendisse metus lectus, posuere eget urna non, varius maximus velit. Curabitur quis pretium nulla.}
 
-    +p{Fusce dui quam, ultricies a arcu non, condimentum accumsan massa. Duis lobortis dictum elit sit amet interdum. Donec efficitur tellus ut urna tempus pretium. Nunc eget nisi eros. Praesent enim nulla, interdum id placerat id, sodales sit amet eros. Integer sed odio at ex venenatis pulvinar. Ut nec urna quis mauris euismod interdum. Aenean id nibh est. Nulla faucibus ac ligula at viverra.}
+    +p{Fusce dui quam, ultricies a arcu non, condimentum accumsan massa. Duis lobortis dictum elit sit amet interdum. Donec efficitur tellus ut urna tempus pretium. Nunc eget nisi eros. Praesent enim nulla, interdum id placerat id, sodales sit amet eros. Integer sed odio at ex venenatis pulvinar. Ut nec urna quis mauris euismod interdum. Aenean id nibh est. Nulla faucibus ac ligula at viverra.\cite[`item1`; `item2`; `item3`; `item4`; `item5`];}
 
     +p{Donec non aliquam enim. Praesent at sem quis nulla dapibus ultrices a sit amet tellus. Fusce consequat id tortor ut ornare. Quisque commodo interdum fringilla. Proin commodo tempus augue, sit amet porta lacus aliquam at. Sed vel purus ac tortor rhoncus maximus. Phasellus ultricies tellus erat, sit amet feugiat enim dictum nec. Lorem ipsum dolor sit amet, consectetur adipiscing elit.}
 
@@ -51,9 +51,16 @@ Cls.document (
 
     +p{Maecenas nec nunc finibus lectus tempor molestie sed eu leo. Etiam varius tincidunt malesuada. Nullam hendrerit neque id nisl porttitor, quis efficitur lacus blandit. Nam mollis laoreet ipsum ac mattis. Aliquam condimentum id nisl nec pulvinar. Maecenas et consectetur lorem. Quisque in elit leo. In felis ante, feugiat nec orci vel, imperdiet fringilla nulla. Vivamus vitae felis quis libero placerat scelerisque sed quis tortor. Maecenas est massa, fringilla vitae nisi interdum, imperdiet faucibus massa. Pellentesque in tempus nulla, a suscipit sapien. Morbi tristique magna sed imperdiet porta. Maecenas ultricies fermentum nisi, sed fermentum lorem condimentum eu. Pellentesque quam urna, feugiat quis pellentesque in, condimentum quis tortor. Cras augue felis, iaculis eu lectus quis, rutrum eleifend odio. Quisque tincidunt quam non ex hendrerit posuere.}
 
-    +p{Donec non aliquam enim. Praesent at sem quis nulla dapibus ultrices a sit amet tellus. Fusce consequat id tortor ut ornare. Quisque commodo interdum fringilla. Proin commodo tempus augue, sit amet porta lacus aliquam at. Sed vel purus ac tortor rhoncus maximus. Phasellus ultricies tellus erat, sit amet feugiat enim dictum nec. Lorem ipsum dolor sit amet, consectetur adipiscing elit.}
+    +p{Donec non aliquam enim. Praesent at sem quis nulla dapibus ultrices a sit amet tellus. Fusce consequat id tortor ut ornare. Quisque commodo interdum fringilla. Proin commodo tempus augue, sit amet porta lacus aliquam at. Sed vel purus ac tortor rhoncus maximus. Phasellus ultricies tellus erat, sit amet feugiat enim dictum nec. Lorem ipsum dolor sit amet, consectetur adipiscing elit\cite[`item1`; `item3`];.}
 
     +p{Maecenas nec nunc finibus lectus tempor molestie sed eu leo. Etiam varius tincidunt malesuada. Nullam hendrerit neque id nisl porttitor, quis efficitur lacus blandit. Nam mollis laoreet ipsum ac mattis. Aliquam condimentum id nisl nec pulvinar. Maecenas et consectetur lorem. Quisque in elit leo. In felis ante, feugiat nec orci vel, imperdiet fringilla nulla. Vivamus vitae felis quis libero placerat scelerisque sed quis tortor. Maecenas est massa, fringilla vitae nisi interdum, imperdiet faucibus massa. Pellentesque in tempus nulla, a suscipit sapien. Morbi tristique magna sed imperdiet porta. Maecenas ultricies fermentum nisi, sed fermentum lorem condimentum eu. Pellentesque quam urna, feugiat quis pellentesque in, condimentum quis tortor. Cras augue felis, iaculis eu lectus quis, rutrum eleifend odio. Quisque tincidunt quam non ex hendrerit posuere.}
   >
+
+  +thebibliography [
+    Cls.bibitem `item1` {hoge, fuga.};
+    Cls.bibitem `item2` {hoge, fuga.};
+    Cls.bibitem `item3` {hoge, fuga.};
+    Cls.bibitem `item4` {hoge, fuga.};
+  ];
 >
 

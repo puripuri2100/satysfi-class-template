@@ -52,8 +52,11 @@ module Cls : sig
 
   direct \ref : [string] inline-cmd
   direct \ref-page : [string] inline-cmd
-%
-%  direct \cite : [string list] inline-cmd
+
+  type bibitem
+  val bibitem : string -> inline-text -> bibitem
+  direct +thebibliography : [bibitem list] block-cmd
+  direct \cite : [string list] inline-cmd
 
 end = struct
 
@@ -903,5 +906,68 @@ end = struct
     |> List.fold-left (++) inline-nil
 
   let-inline \url url = {\href (url) {\non-hyph(url);}}
+
+  type bibitem = string * inline-text
+
+  let bibitem key value = (key, value)
+
+  let-mutable bib-counter <- 0
+
+  let bib-scheme ctx key inner =
+    let () = bib-counter <- !bib-counter + 1 in
+    let s-num = arabic !bib-counter in
+    let it-num = embed-string s-num in
+    let label = `bibitem:` ^ key in
+    let () = register-cross-reference-num label s-num in
+    % [1] 著者名．出版年．「タイトル」．
+    % のようなスタイルになっている
+    % ここを修正すれば思い通りの状態にできる
+    let text = {[#it-num;]} in
+    let space = inline-skip (get-font-size ctx) in
+    register-doc-hyper-link label (
+      read-inline ctx text ++ space ++ read-inline ctx inner ++ inline-fil
+    )
+
+  let-block ctx +thebibliography bibitems =
+    let main =
+      bibitems
+      |> List.map (fun (k, v) -> bib-scheme ctx k v)
+      |> List.map (fun ib -> line-break true true ctx ib)
+      |> List.fold-left (+++) block-nil
+    in
+    let header-text = {参考文献} in
+    let header-ctx =
+      ctx |> set-font-size (font-size-section ())
+          |> set-cjk-font font-cjk-gothic
+          |> set-latin-font font-latin-sans
+          |> set-paragraph-margin (font-size-section ()) (font-size-normal ())
+    in
+    let header-ib = read-inline header-ctx header-text ++ inline-fil in
+    let header = line-break true false header-ctx header-ib in
+    header +++ main
+
+
+  let cite-scheme ctx key =
+    let label = `bibitem:` ^ key in
+    let num = embed-string (get-cross-reference-num label) in
+    doc-hyper-link label (read-inline ctx num)
+
+  let-inline ctx \cite keys =
+    let comma = read-inline ctx {,\ } in
+    let join i ib1 ib2 =
+      if i == 0 then
+        ib2
+      else
+        % カンマ区切り結合をするための関数
+        ib1 ++ comma ++ ib2
+    in
+    let bracket-open = read-inline ctx {[} in
+    let bracket-close = read-inline ctx {]} in
+    let main =
+      keys
+      |> List.map (fun key -> cite-scheme ctx key)
+      |> List.fold-lefti join inline-nil
+    in
+    bracket-open ++ main ++ bracket-close
 
 end
