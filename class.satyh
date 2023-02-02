@@ -39,7 +39,10 @@ module Cls : sig
   val set-bottom-margin : length -> config -> config
   val set-multicolumn : int -> config -> config
   val set-columnsep : length -> config -> config
+  val set-abstract : block-text -> config -> config
 
+
+  direct +abstract : [inline-text?; block-text] block-cmd
 
   direct +section : [string?; bool?; string?; inline-text; block-text] block-cmd
   direct +p : [inline-text] block-cmd
@@ -68,7 +71,7 @@ end = struct
   let top = Top
   let here = Here
 
-  % 設定の中身は単なるレコードだが、隠蔽することによって公報互換性を保てるようにする
+  % 設定の中身は単なるレコードだが、隠蔽することによって後方互換性を保てるようにする
   type config = (|
     title         : inline-text list;
     title-str     : string option;
@@ -92,6 +95,7 @@ end = struct
     bottom-margin : length;
     multicolumn   : int;
     columnsep     : length;
+    abstract      : block-text option;
   |)
 
 
@@ -118,6 +122,7 @@ end = struct
     bottom-margin = 25mm;
     multicolumn   = 1;
     columnsep     = 20pt;
+    abstract      = None;
   |)
 
 
@@ -197,6 +202,9 @@ end = struct
 
   let set-columnsep columnsep config =
     (| config with columnsep = columnsep; |)
+
+  let set-abstract abstract config =
+    (| config with abstract = Some(abstract); |)
 
 
   % フォントサイズ補正
@@ -327,6 +335,11 @@ end = struct
       (read-inline ctx (embed-string (get-cross-reference-page label)))
 
 
+  let-rec break-page column =
+    if column <= 1 then
+      clear-page
+    else
+      clear-page +++ break-page (column - 1)
 
 
   let-mutable toc-ref <- []
@@ -403,6 +416,14 @@ end = struct
     % ページサイズ
     let page = UserDefinedPaper(c#width-page, c#height-page) in
 
+
+    let abstract-block =
+      let ctx = make-ctx all-text-width in
+      match c#abstract with
+      | None -> block-nil
+      | Some(abstract) -> read-block ctx abstract
+    in
+
     let bb-title =
       let ctx = make-ctx all-text-width in
       if c#show-title then
@@ -462,6 +483,8 @@ end = struct
           title-block +++
           author-block +++
           date-block +++
+          block-skip 0pt +++
+          abstract-block +++
           block-skip (font-size-normal () *' 1.0)
       else
         block-nil
@@ -502,6 +525,10 @@ end = struct
       let header =
         if c#show-title && pbinfo#page-number == 1 then
           bb-title
+        else if c#title-page && pbinfo#page-number == 2 then
+          let h = get-natural-length abstract-block in
+          let space = (text-height -' h) *' 0.35 in
+          block-skip space +++ abstract-block
         else
           let (bb, new-float-boxes) = break-float-boxes !now-page-num (text-height -' top-pad) !float-boxes in
           let () = float-boxes <- new-float-boxes in
@@ -619,7 +646,7 @@ end = struct
           |> line-break true false ctx
         in
         if c#title-page then
-          toc-title +++ toc-main +++ clear-page
+          toc-title +++ toc-main +++ (break-page c#multicolumn)
         else
           toc-title +++ toc-main +++ block-skip (font-size-normal ())
       else
@@ -631,8 +658,11 @@ end = struct
     in
 
     let bb-main =
-      if c#show-title && c#title-page then
-        clear-page +++ bb-toc +++ bb-main
+      if c#title-page then
+        if c#show-title then
+          (break-page c#multicolumn) +++ (break-page c#multicolumn) +++ bb-toc +++ bb-main
+        else
+          (break-page c#multicolumn) +++ bb-toc +++ bb-main
       else
         bb-toc +++ bb-main
     in
@@ -682,6 +712,31 @@ end = struct
     in
     let () = register-document-information document-information in
       doc-main
+
+
+  let-block ctx +abstract ?:title-opt contents =
+    let title-it =
+      match title-opt with
+      | None -> {概要}
+      | Some(it) -> it
+    in
+    let pads =
+      (font-size-normal () *' 2.0, font-size-normal () *' 2.0, 0pt, 0pt)
+    in
+    block-frame-breakable ctx pads VDecoSet.empty (fun ctx -> (
+      let font-size = get-font-size ctx in
+      let ctx =
+        ctx |> set-font-size (font-size *' 0.8)
+      in
+      let title-ctx =
+        ctx |> set-cjk-font font-cjk-gothic
+            |> set-latin-font font-latin-bold
+      in
+      let title =
+        line-break true false ctx (inline-fil ++ read-inline title-ctx title-it ++ inline-fil)
+      in
+      title +++ read-block ctx contents
+    ))
 
 
   let indent ctx =

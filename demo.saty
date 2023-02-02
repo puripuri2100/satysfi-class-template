@@ -6,9 +6,14 @@ Cls.document (
   Cls.default-config
   |> Cls.set-title {タイトル}
   |> Cls.set-author {\@puripuri2100}
-  |> Cls.set-show-toc false
-  |> Cls.set-title-page false
+  |> Cls.set-show-toc true
+  |> Cls.set-title-page true
   |> Cls.set-multicolumn 2
+  |> Cls.set-abstract ('<
+    +abstract ?:({Abstract}) <
+      +p{Cras bibendum elit vel tellus ultrices vestibulum. Curabitur euismod tempus ex. Aliquam sed lectus at nulla porttitor ornare vitae ac odio. Donec volutpat augue ac quam elementum sollicitudin. Donec ac metus in urna auctor lobortis volutpat dictum quam. Cras id quam sed erat tempor tempor id et leo.}
+    >
+  >)
 ) '<
   +section {タイトル} <
     +p{p}

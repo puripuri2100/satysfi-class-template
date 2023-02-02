@@ -9,6 +9,7 @@ You are free to modify and distribute this project.
 Supported basic functions for document creation.
 
 - title
+- abstract
 - table of contents
 - section
 - bibliography
