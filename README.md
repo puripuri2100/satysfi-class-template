@@ -6,7 +6,7 @@ You are able to free to modify and distribute this project.
 
 # Suppoerted functions
 
-Supported basic functions for document creation.
+Supported basic functions for writing documents.
 
 - title
 - abstract
