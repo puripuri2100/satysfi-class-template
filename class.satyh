@@ -4,6 +4,7 @@
 @require: annot
 @require: footnote-scheme
 @require: vdecoset
+@require: option
 
 module Cls : sig
 
@@ -256,6 +257,37 @@ end = struct
       |> set-text-color Color.black
 
 
+    % ページ番号を開始する位置を記録する
+    let register-start-page () =
+      hook-page-break-block (fun pbinfo _ -> register-cross-reference `start-page` (arabic pbinfo#page-number))
+
+    let string2int str =
+      let clst =
+        str
+        |> string-explode
+        |> List.reverse
+      in
+      let-rec sub n clst =
+        match clst with
+        | [] -> 0
+        | c::xs -> (
+          let i =
+            if 0x30 <= c && c <= 0x39 then
+              c - 0x30
+            else
+              abort-with-message (`parse error : `# ^ str)
+          in
+          i * n + sub (n * 10) xs
+        )
+      in
+      sub 1 clst
+
+    % ページ番号を開始する位置を取得する
+    let get-start-page () =
+      match get-cross-reference `start-page` with
+      | None -> 1
+      | Some (page-num) -> string2int page-num
+
     % unit型
     % satysfi-auxファイルにkey-value形式で書きだされる
     % (label ^ `:num`)がkeyでtitleがvalue
@@ -268,10 +300,8 @@ end = struct
     % ページ番号を取得するためにblock-nilと同じ挙動をするblock-boxes
     % をフックとして埋め込む必要がある
     let register-cross-reference-page label =
-      if !is-title-page-ref then
-        hook-page-break (fun pbinfo _ -> register-cross-reference (label ^ `:page`) (arabic (pbinfo#page-number - 1)))
-      else
-        hook-page-break (fun pbinfo _ -> register-cross-reference (label ^ `:page`) (arabic pbinfo#page-number))
+      let start-page = get-start-page () in
+      hook-page-break (fun pbinfo _ -> register-cross-reference (label ^ `:page`) (arabic (pbinfo#page-number - start-page + 1)))
 
 
     % block-boxes型
@@ -279,10 +309,8 @@ end = struct
     % ページ番号を取得するためにblock-nilと同じ挙動をするblock-boxes
     % をフックとして埋め込む必要がある
     let register-cross-reference-page-block label =
-      if !is-title-page-ref then
-        hook-page-break-block (fun pbinfo _ -> register-cross-reference (label ^ `:page`) (arabic (pbinfo#page-number - 1)))
-      else
-        hook-page-break-block (fun pbinfo _ -> register-cross-reference (label ^ `:page`) (arabic pbinfo#page-number))
+      let start-page = get-start-page () in
+      hook-page-break-block (fun pbinfo _ -> register-cross-reference (label ^ `:page`) (arabic (pbinfo#page-number - start-page + 1)))
 
 
 
@@ -493,11 +521,9 @@ end = struct
     % コンテンツを表示させる部分の指定
     let pagecontf pbinfo =
       let ctx = make-ctx all-text-width in
+      let start-page = get-start-page () in
       let () =
-        if c#title-page && c#show-title then
-          now-page-num <- pbinfo#page-number - 1
-        else
-          now-page-num <- pbinfo#page-number
+        now-page-num <- pbinfo#page-number - start-page + 1
       in
       let (bb, lst) = break-float-boxes !now-page-num (text-height -' top-pad) !float-boxes in
       let float-len =
@@ -519,13 +545,14 @@ end = struct
     in
     % ヘッダーとフッターの設定
     let pagepartsf pbinfo =
+      let start-page = get-start-page () in
       let ctx = make-ctx all-text-width in
       let page-num = !now-page-num |> arabic |> embed-string in
       let ctx = set-paragraph-margin 0pt 0pt ctx in
       let header =
         if c#show-title && pbinfo#page-number == 1 then
           bb-title
-        else if c#title-page && pbinfo#page-number == 2 then
+        else if c#title-page && not (Option.is-none c#abstract) && pbinfo#page-number == 2 then
           let h = get-natural-length abstract-block in
           let space = (text-height -' h) *' 0.35 in
           block-skip space +++ abstract-block
@@ -536,7 +563,7 @@ end = struct
       in
       let header-origin = (c#left-margin, c#top-margin) in
       let footer =
-        if c#title-page && pbinfo#page-number == 1 then
+        if pbinfo#page-number < start-page then
           block-nil
         else
           if c#show-footer then
@@ -659,12 +686,13 @@ end = struct
 
     let bb-main =
       if c#title-page then
-        if c#show-title then
-          (break-page c#multicolumn) +++ (break-page c#multicolumn) +++ bb-toc +++ bb-main
+        if c#show-title && not (Option.is-none c#abstract) then
+          (break-page c#multicolumn) +++ (break-page c#multicolumn) +++
+            register-start-page () +++ bb-toc +++ bb-main
         else
-          (break-page c#multicolumn) +++ bb-toc +++ bb-main
+          (break-page c#multicolumn) +++ register-start-page () +++ bb-toc +++ bb-main
       else
-        bb-toc +++ bb-main
+        register-start-page () +++ bb-toc +++ bb-main
     in
     let doc-main = page-break-multicolumn page seps columnhookf columnendhookf pagecontf pagepartsf (bb-main +++ bb-last) in
 
@@ -909,16 +937,12 @@ end = struct
       |> register-doc-hyper-link label
     in
     let bb = read-block ctx inner +++ (line-break false true ctx caption-ib) in
+    let start-page = get-start-page () in
     match position-opt with
     | Some(Top) -> (
-      if !is-title-page-ref then
-        hook-page-break-block (fun pbinfo _ -> (
-          float-boxes <- (pbinfo#page-number + 1, bb) :: !float-boxes
-        )) +++ block-skip 0pt
-      else
-        hook-page-break-block (fun pbinfo _ -> (
-          float-boxes <- (pbinfo#page-number, bb) :: !float-boxes
-        )) +++ block-skip 0pt
+      hook-page-break-block (fun pbinfo _ -> (
+        float-boxes <- (pbinfo#page-number - start-page + 1, bb) :: !float-boxes
+      )) +++ block-skip 0pt
     )
     | _ -> bb
 
@@ -945,16 +969,12 @@ end = struct
       |> register-doc-hyper-link label
     in
     let bb = (line-break false true ctx caption-ib) +++ read-block ctx inner in
+    let start-page = get-start-page () in
     match position-opt with
     | Some(Top) -> (
-      if !is-title-page-ref then
-        hook-page-break-block (fun pbinfo _ -> (
-          float-boxes <- (pbinfo#page-number + 1, bb) :: !float-boxes
-        )) +++ block-skip 0pt
-      else
-        hook-page-break-block (fun pbinfo _ -> (
-          float-boxes <- (pbinfo#page-number, bb) :: !float-boxes
-        )) +++ block-skip 0pt
+      hook-page-break-block (fun pbinfo _ -> (
+        float-boxes <- (pbinfo#page-number - start-page + 2, bb) :: !float-boxes
+      )) +++ block-skip 0pt
     )
     | _ -> bb
 
