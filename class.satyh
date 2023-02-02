@@ -50,7 +50,7 @@ module Cls : sig
   direct +section : [string?; bool?; string?; inline-text; block-text] block-cmd
   direct +p : [inline-text] block-cmd
 
-  direct \footnote : [inline-text] inline-cmd
+  direct \footnote : [bool?; bool?; inline-text] inline-cmd
 
   direct \thanks : [inline-text] inline-cmd
 
@@ -218,7 +218,7 @@ end = struct
   let set-abstract abstract config =
     (| config with abstract = Some(abstract); |)
 
-  let-mutable thanks-marks-ref <- [`†`; `‡`; `*`]
+  let-mutable thanks-marks-ref <- [`*`; `†`; `‡`]
   let set-thanks-marks marks config =
       let () = thanks-marks-ref <- marks in
       (| config with thanks-marks = marks;|)
@@ -463,6 +463,7 @@ end = struct
 
   % 脚注関係のフラグ
   let-mutable is-first-footnote <- true
+  let-mutable footnote-in-title <- false
   let-mutable thanks-lst <- []
   let footnote-line ctx =
     let ctx =
@@ -531,6 +532,7 @@ end = struct
     in
 
     let bb-title =
+      let () = footnote-in-title <- true in
       let ctx = make-ctx all-text-width in
       if c#show-title then
         % TODO: タイトルを作成する
@@ -575,6 +577,7 @@ end = struct
             )
           )
         in
+        let () = footnote-in-title <- false in
         if c#title-page then
           let main =
             title-block +++
@@ -963,10 +966,40 @@ end = struct
 
 
   let-mutable footnote-count <- 0
-  let-inline ctx \footnote content =
-    let () = footnote-count <- !footnote-count + 1 in
-    let label = `footnote:` ^ (arabic !footnote-count) in
-    let mark = !footnote-mark-ref in
+  let-mutable footnote-label-count <- 0
+  let-inline ctx \footnote ?:is-show-num-opt ?:is-show-mark-opt content =
+    let is-show-num =
+      match is-show-num-opt with
+      | Some(b) -> b
+      | None -> true
+    in
+    let is-show-mark =
+      match is-show-mark-opt with
+      | Some(b) -> b
+      | None -> true
+    in
+    let () =
+      if is-show-num then
+        footnote-count <- !footnote-count + 1
+      else
+        ()
+    in
+    let () = footnote-label-count <- !footnote-label-count + 1 in
+    let label = `footnote:` ^ (arabic !footnote-label-count) in
+    let mark =
+      if is-show-mark then
+        !footnote-mark-ref
+      else
+        {}
+    in
+    let num-it =
+      if is-show-num then
+        !footnote-count
+        |> arabic
+        |> embed-string
+      else
+        {}
+    in
     let font-size = get-font-size ctx in
     % *1などの表示部分
     let ib =
@@ -974,25 +1007,17 @@ end = struct
         ctx |> set-font-size (font-size *' 0.75)
             |> set-manual-rising (font-size *' 0.25)
       in
-      let num-it =
-        !footnote-count
-        |> arabic
-        |> embed-string
-      in
       (doc-hyper-link label (read-inline ctx {#mark;#num-it;}))
     in
     % ページ下部に出現するブロック
-    let bb =
+    let bb () =
+      let ctx = make-ctx !text-width-ref in
+      let font-size = get-font-size ctx in
       let ctx =
         ctx |> set-font-size (font-size *' 0.85)
             |> set-leading font-size
             |> set-paragraph-margin 0pt font-size
       in
-      let num-it =
-        !footnote-count
-        |> arabic
-        |> embed-string
-      in 
       let num-ib =
         {#mark;#num-it;}
         |> read-inline ctx
@@ -1012,7 +1037,7 @@ end = struct
         ))
     in
     let before-footnote-page =
-      get-cross-reference-column (`footnote:` ^ arabic (!footnote-count - 1))
+      get-cross-reference-column (`footnote:` ^ arabic (!footnote-label-count - 1))
     in
     let now-footnote-page =
       get-cross-reference-column label
@@ -1026,12 +1051,15 @@ end = struct
         | (Some(i), Some(j)) -> (
           if i < j then footnote-line ctx else block-nil
         )
-        | (None, _) -> footnote-line ctx
-        | _ -> block-nil
+        | _ -> footnote-line ctx
     in
     let () = is-first-footnote <- false in
-    let hook = add-footnote (bb-line +++ bb) in
-    hook ++ ib
+    if !footnote-in-title then
+      let () = thanks-lst <- bb :: !thanks-lst in
+      ib
+    else
+      let hook = add-footnote (bb-line +++ bb ()) in
+      hook ++ ib
 
   let-mutable thanks-count <- 0
   let-inline ctx \thanks content =
@@ -1048,11 +1076,11 @@ end = struct
         | None -> {}
         | Some(s) -> embed-string s
     in
-    let font-size = get-font-size ctx in
+    let font-size = font-size-author () in
     % †などの表示部分
     let ibk =
       let ctx =
-        ctx |> set-font-size (font-size *' 0.75)
+        ctx |> set-font-size (font-size *' 0.8)
             |> set-manual-rising (font-size *' 0.25)
       in
       read-inline ctx {#mark;}
