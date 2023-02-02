@@ -18,9 +18,10 @@ module Cls : sig
 
   val default-config : config
   val set-title : inline-text -> config -> config
-  val set-title-lst : inline-text list -> config -> config
+  val set-title-multiline : inline-text list -> config -> config
   val set-title-str : string -> config -> config
   val set-author : inline-text -> config -> config
+  val set-author-multiline : inline-text list -> config -> config
   val set-author-str : string -> config -> config
   val set-date : inline-text -> config -> config
   val set-subject : string -> config -> config
@@ -76,7 +77,7 @@ end = struct
   type config = (|
     title         : inline-text list;
     title-str     : string option;
-    author        : inline-text option;
+    author        : inline-text list;
     author-str    : string option;
     date          : inline-text option;
     subject       : string option;
@@ -103,7 +104,7 @@ end = struct
   let default-config = (|
     title         = [];
     title-str     = None;
-    author        = None;
+    author        = [];
     author-str    = None;
     date          = None;
     subject       = None;
@@ -132,14 +133,17 @@ end = struct
   let set-title title config =
     (| config with title = [title]; |)
 
-  let set-title-lst title-lst config =
+  let set-title-multiline title-lst config =
     (| config with title = title-lst; |)
 
   let set-title-str title-str config =
     (| config with title-str = Some(title-str); |)
 
   let set-author author config =
-    (| config with author = Some(author); |)
+    (| config with author = [author]; |)
+
+  let set-author-multiline authors config =
+    (| config with author = authors; |)
 
   let set-author-str author-str config =
     (| config with author-str = Some(author-str); |)
@@ -473,16 +477,17 @@ end = struct
           )
         in
         let author-block =
-          match c#author with
-          | None -> block-nil
-          | Some(author) -> (
+          let f it =
             let ctx =
               ctx |> set-font-size (font-size-author ())
             in
             line-break false false ctx (
-              inline-fil ++ read-inline ctx author ++ inline-fil
+              inline-fil ++ read-inline ctx it ++ inline-fil
             )
-          )
+          in
+          c#author
+          |> List.map f
+          |> List.fold-left (+++) block-nil
         in
         let date-block =
           match c#date with
@@ -721,11 +726,12 @@ end = struct
         | Some(s) -> Some(s)
         | None -> (
           match c#author with
-          | None -> None
-          | Some(it) -> (
+          | [] -> None
+          | lst -> (
             Some(
-              it
-              |> read-inline ctx
+              lst
+              |> List.map (read-inline ctx)
+              |> List.fold-left (++) inline-nil
               |> extract-string
             )
           )
