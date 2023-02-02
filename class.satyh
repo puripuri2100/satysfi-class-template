@@ -2,7 +2,6 @@
 @require: color
 @require: list
 @require: annot
-@require: footnote-scheme
 @require: vdecoset
 @require: option
 
@@ -42,6 +41,7 @@ module Cls : sig
   val set-multicolumn : int -> config -> config
   val set-columnsep : length -> config -> config
   val set-abstract : block-text -> config -> config
+  val set-thanks-mark : string list -> config -> config
 
 
   direct +abstract : [inline-text?; block-text] block-cmd
@@ -50,6 +50,8 @@ module Cls : sig
   direct +p : [inline-text] block-cmd
 
   direct \footnote : [inline-text] inline-cmd
+
+  direct \thanks : [inline-text] inline-cmd
 
   direct +figure : [string?; position?; inline-text; block-text] block-cmd
   direct +table : [string?; position?; inline-text; block-text] block-cmd
@@ -98,6 +100,7 @@ end = struct
     multicolumn   : int;
     columnsep     : length;
     abstract      : block-text option;
+    thanks-mark   : string list;
   |)
 
 
@@ -125,6 +128,7 @@ end = struct
     multicolumn   = 1;
     columnsep     = 20pt;
     abstract      = None;
+    thanks-mark   = [`†`; `‡`; `*`];
   |)
 
 
@@ -211,6 +215,10 @@ end = struct
   let set-abstract abstract config =
     (| config with abstract = Some(abstract); |)
 
+  let-mutable thanks-mark-ref <- [`†`; `‡`; `*`]
+  let set-thanks-mark marks config =
+      let () = thanks-mark-ref <- marks in
+      (| config with thanks-mark = marks;|)
 
   % フォントサイズ補正
   let font-ratio-latin = 1.
@@ -269,22 +277,24 @@ end = struct
       let clst =
         str
         |> string-explode
-        |> List.reverse
       in
-      let-rec sub n clst =
-        match clst with
+      let-rec sub n cs =
+        match cs with
         | [] -> 0
         | c::xs -> (
           let i =
             if 0x30 <= c && c <= 0x39 then
               c - 0x30
             else
-              abort-with-message (`parse error : `# ^ str)
+              abort-with-message (`parse error : `# ^ string-unexplode [c] ^ `(` ^ arabic c ^ #`) in `# ^ str)
           in
           i * n + sub (n * 10) xs
         )
       in
-      sub 1 clst
+      match clst with
+      | [] -> 0
+      | 0x2D::cs -> (sub 1 (List.reverse cs)) * -1
+      | _ -> sub 1 (List.reverse clst)
 
     % ページ番号を開始する位置を取得する
     let get-start-page () =
@@ -317,6 +327,43 @@ end = struct
       hook-page-break-block (fun pbinfo _ -> register-cross-reference (label ^ `:page`) (arabic (pbinfo#page-number - start-page + 1)))
 
 
+    let get-column-num x shifts =
+      let-rec sub hook-x n shifts =
+        match shifts with
+        | [] -> n
+        | x::xs -> (
+          if hook-x <' x then
+            n
+          else
+            sub hook-x (n + 1) xs
+        )
+      in
+      sub x 1 shifts
+
+    let register-cross-reference-column label shifts =
+      let start-page = get-start-page () in
+      let column-size = List.length shifts + 1 in
+      let column-num page-num x =
+        let p = page-num - start-page in
+        p * column-size + (get-column-num x shifts)
+      in
+      hook-page-break (fun pbinfo (x, _) -> (
+        let c = column-num pbinfo#page-number x in
+        register-cross-reference (label ^ `:column`) (arabic c)
+      ))
+
+    let register-cross-reference-column-block label shifts =
+      let start-page = get-start-page () in
+      let column-size = List.length shifts + 1 in
+      let column-num page-num x =
+        let p = page-num - start-page in
+        p * column-size + (get-column-num x shifts)
+      in
+      hook-page-break-block (fun pbinfo (x, _) -> (
+        let c = column-num pbinfo#page-number x in
+        register-cross-reference (label ^ `:column`) (arabic c)
+      ))
+
 
   % 取得用関数 返り値はどちらもstring型
   % satysfi-auxファイルからkeyに合致するvalueを取得する
@@ -333,6 +380,11 @@ end = struct
     match get-cross-reference (label ^ `:page`) with
       | None -> `?`
       | Some (label) -> label
+
+  let get-cross-reference-column label =
+    match get-cross-reference (label ^ `:column`) with
+      | None -> None
+      | Some (s) -> Some(string2int s)
 
 
   % ハイパーリンクのキー登録とキー取得
@@ -392,12 +444,31 @@ end = struct
     repeat-inline n ib
 
   let-mutable all-text-width-ref <- 0pt
+  let-mutable text-width-ref <- 0pt
+  let-mutable shifts-ref <- []
 
   % 浮動図のための可変値
   % 出力したいblock-boxesとそれが入力されたページ番号の組のリスト
   let-mutable float-boxes <- []
   let-mutable is-last-page <- false
   let-mutable now-page-num <- 0
+
+  % 脚注関係のフラグ
+  let-mutable is-first-footnote <- true
+  let-mutable thanks-lst <- []
+  let footnote-line ctx =
+    let ctx =
+      ctx |> set-paragraph-margin 0pt 0pt
+    in
+    let wid = (get-text-width ctx) *' 0.8 in
+    let margin = (font-size-normal ()) *' 0.5 in
+    let ib =
+      inline-graphics wid margin margin (fun (x, y) -> ([
+        Gr.line (x,y) (x +' wid, y)
+        |> stroke 0.5pt Color.black
+      ])) ++ inline-fil
+    in
+    line-break true false ctx ib
 
   % 浮動図の出力を決める
   % 出力する部分のblock-boxesと新しいfloat-boxesの値を返す
@@ -425,6 +496,7 @@ end = struct
     let text-width =
       (all-text-width -' c#columnsep *' (float (c#multicolumn - 1))) *' (1.0 /. float c#multicolumn)
     in
+    let () = text-width-ref <- text-width in
     let seps =
       let-rec sub multicolumn =
         if multicolumn >= c#multicolumn then
@@ -434,16 +506,10 @@ end = struct
       in
       sub 1
     in
+    let () = shifts-ref <- seps in
     let text-height = c#height-page -' (c#top-margin +' c#bottom-margin) in
     let top-pad = 20pt in
     let ctx = make-ctx text-width in
-
-    % 脚注の番号のリセットを行う
-    % これを+sectionなどに移せば章ごとに番号をリセットできたりする（はず）
-    let () = FootnoteScheme.initialize () in
-
-    % 参照系を確定させるために早めに評価する
-    let bb-main = read-block ctx main in
 
     % ページサイズ
     let page = UserDefinedPaper(c#width-page, c#height-page) in
@@ -523,6 +589,9 @@ end = struct
         block-nil
     in
 
+    % 参照系を確定させるために早めに評価する
+    let bb-main = read-block ctx main in
+
     % コンテンツを表示させる部分の指定
     let pagecontf pbinfo =
       let ctx = make-ctx all-text-width in
@@ -589,8 +658,7 @@ end = struct
 
     let columnhookf () =
       % 脚注のブロック部分をページ下部に埋め込む処理に関するフックを実行
-      % ページごとに一回登場する必要がある
-      let () = FootnoteScheme.start-page () in
+      % ページの最初に一回登場する必要がある
       block-nil
     in
     let columnendhookf () =
@@ -689,6 +757,19 @@ end = struct
       hook-page-break-block (fun _ _ -> (is-last-page <- true))
     in
 
+    let bb-thanks =
+      !thanks-lst
+      |> List.reverse
+      |> List.mapi (fun i bb-fun -> (
+        if i == 0 && not c#title-page then
+          add-footnote ((footnote-line ctx) +++ (bb-fun ()))
+        else
+          add-footnote (bb-fun ())
+      ))
+      |> List.fold-left (++) inline-nil
+      |> (fun ib -> (ib ++ inline-fil))
+      |> line-break true true ctx
+    in
     let bb-main =
       if c#title-page then
         if c#show-title && not (Option.is-none c#abstract) then
@@ -699,7 +780,7 @@ end = struct
       else
         register-start-page () +++ bb-toc +++ bb-main
     in
-    let doc-main = page-break-multicolumn page seps columnhookf columnendhookf pagecontf pagepartsf (bb-main +++ bb-last) in
+    let doc-main = page-break-multicolumn page seps columnhookf columnendhookf pagecontf pagepartsf (bb-thanks +++ bb-main +++ bb-last) in
 
     % ラベルを設置する
     let () = register-outline (List.reverse !outline-ref) in
@@ -873,31 +954,33 @@ end = struct
     title-bb +++ bb
 
 
+  let-mutable footnote-count <- 0
   let-inline ctx \footnote content =
+    let () = footnote-count <- !footnote-count + 1 in
+    let label = `footnote:` ^ (arabic !footnote-count) in
     let font-size = get-font-size ctx in
     % *1などの表示部分
-    let ibf num =
+    let ib =
       let ctx =
         ctx |> set-font-size (font-size *' 0.75)
             |> set-manual-rising (font-size *' 0.25)
       in
-      let label = `footnote:` ^ (arabic num) in
       let num-it =
-        num
+        !footnote-count
         |> arabic
         |> embed-string
       in
       (doc-hyper-link label (read-inline ctx {†#num-it;}))
     in
     % ページ下部に出現するブロック
-    let bbf num =
+    let bb =
       let ctx =
         ctx |> set-font-size (font-size *' 0.85)
-            |> set-paragraph-margin (font-size *' 0.5) (font-size *' 0.5)
+            |> set-leading font-size
+            |> set-paragraph-margin 0pt font-size
       in
-      let label = `footnote:` ^ (arabic num) in
       let num-ib =
-        num
+        !footnote-count
         |> arabic
         |> embed-string
         |> read-inline ctx
@@ -905,7 +988,74 @@ end = struct
       in
       let content-ib = read-inline ctx content in
       block-frame-breakable ctx
-        ((get-natural-width num-ib) +' font-size, 0pt, 0pt, 0pt)
+        ((get-natural-width num-ib) +' font-size, 0pt, font-size, 0pt)
+        VDecoSet.empty
+        (fun ctx -> (
+          let ib-hook = register-cross-reference-column label !shifts-ref in
+          line-break false false ctx (
+            inline-skip (((get-natural-width num-ib) +' font-size) *' -1.0) ++
+            ib-hook ++ num-ib ++ inline-skip font-size ++
+            content-ib ++ inline-fil
+          )
+        ))
+    in
+    let before-footnote-page =
+      get-cross-reference-column (`footnote:` ^ arabic (!footnote-count - 1))
+    in
+    let now-footnote-page =
+      get-cross-reference-column label
+    in
+    % 線を引く
+    let bb-line =
+      if !is-first-footnote then
+        footnote-line ctx
+      else
+        match (before-footnote-page, now-footnote-page) with
+        | (Some(i), Some(j)) -> (
+          if i < j then footnote-line ctx else block-nil
+        )
+        | _ -> block-nil
+    in
+    let () = is-first-footnote <- false in
+    let hook = add-footnote (bb-line +++ bb) in
+    hook ++ ib
+
+  let-mutable thanks-count <- 0
+  let-inline ctx \thanks content =
+    let ctx = make-ctx !text-width-ref in
+    let () = thanks-count <- !thanks-count + 1 in
+    let mark =
+      if List.length !thanks-mark-ref == 0 then
+        {}
+      else
+        let n =
+          !thanks-count mod (List.length !thanks-mark-ref)
+        in
+        match List.nth (n - 1) !thanks-mark-ref with
+        | None -> {}
+        | Some(s) -> embed-string s
+    in
+    let font-size = get-font-size ctx in
+    % †などの表示部分
+    let ibk =
+      let ctx =
+        ctx |> set-font-size (font-size *' 0.75)
+            |> set-manual-rising (font-size *' 0.25)
+      in
+      read-inline ctx {#mark;}
+    in
+    % ページ下部に出現するブロック
+    let bbk () =
+      let font-size = !normal-font-size-ref in
+      let ctx =
+        ctx |> set-font-size (font-size *' 0.85)
+            |> set-leading font-size
+            |> set-paragraph-margin 0pt font-size
+      in
+      let num-ib = read-inline ctx mark in
+      let content-ib = read-inline ctx content in
+      block-frame-breakable ctx
+        ((get-natural-width num-ib) +' font-size, 0pt, font-size, 0pt)
         VDecoSet.empty
         (fun ctx -> (
           line-break false false ctx (
@@ -915,8 +1065,14 @@ end = struct
           )
         ))
     in
-    FootnoteScheme.main ctx ibf bbf
-
+    let () =
+      if not !is-title-page-ref then
+        is-first-footnote <- false
+      else
+        ()
+    in
+    let () = thanks-lst <- bbk :: !thanks-lst in
+    ibk
 
   let-mutable figure-count <- 0
   let-mutable table-count <- 0
