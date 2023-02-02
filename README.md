@@ -2,7 +2,7 @@
 
 This project is [SATySFi](https://github.com/gfngfn/SATySFi) styling library template.
 
-You are free to modify and distribute this project.
+You are able to free to modify and distribute this project.
 
 # Suppoerted functions
 
