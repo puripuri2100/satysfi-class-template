@@ -673,7 +673,7 @@ end = struct
           |> line-break true false ctx
         in
         if c#title-page then
-          toc-title +++ toc-main +++ (break-page c#multicolumn)
+          toc-title +++ toc-main +++ clear-page%(break-page c#multicolumn)
         else
           toc-title +++ toc-main +++ block-skip (font-size-normal ())
       else
