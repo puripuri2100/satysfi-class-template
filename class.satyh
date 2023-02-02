@@ -41,7 +41,8 @@ module Cls : sig
   val set-multicolumn : int -> config -> config
   val set-columnsep : length -> config -> config
   val set-abstract : block-text -> config -> config
-  val set-thanks-mark : string list -> config -> config
+  val set-thanks-marks : string list -> config -> config
+  val set-footnote-mark : inline-text -> config -> config
 
 
   direct +abstract : [inline-text?; block-text] block-cmd
@@ -100,7 +101,8 @@ end = struct
     multicolumn   : int;
     columnsep     : length;
     abstract      : block-text option;
-    thanks-mark   : string list;
+    thanks-marks  : string list;
+    footnote-mark : inline-text;
   |)
 
 
@@ -128,7 +130,8 @@ end = struct
     multicolumn   = 1;
     columnsep     = 20pt;
     abstract      = None;
-    thanks-mark   = [`†`; `‡`; `*`];
+    thanks-marks   = [`*`; `†`; `‡`];
+    footnote-mark = {†};
   |)
 
 
@@ -215,10 +218,15 @@ end = struct
   let set-abstract abstract config =
     (| config with abstract = Some(abstract); |)
 
-  let-mutable thanks-mark-ref <- [`†`; `‡`; `*`]
-  let set-thanks-mark marks config =
-      let () = thanks-mark-ref <- marks in
-      (| config with thanks-mark = marks;|)
+  let-mutable thanks-marks-ref <- [`†`; `‡`; `*`]
+  let set-thanks-marks marks config =
+      let () = thanks-marks-ref <- marks in
+      (| config with thanks-marks = marks;|)
+
+  let-mutable footnote-mark-ref <- {†}
+  let set-footnote-mark mark config =
+      let () = footnote-mark-ref <- mark in
+      (| config with footnote-mark = mark;|)
 
   % フォントサイズ補正
   let font-ratio-latin = 1.
@@ -958,6 +966,7 @@ end = struct
   let-inline ctx \footnote content =
     let () = footnote-count <- !footnote-count + 1 in
     let label = `footnote:` ^ (arabic !footnote-count) in
+    let mark = !footnote-mark-ref in
     let font-size = get-font-size ctx in
     % *1などの表示部分
     let ib =
@@ -970,7 +979,7 @@ end = struct
         |> arabic
         |> embed-string
       in
-      (doc-hyper-link label (read-inline ctx {†#num-it;}))
+      (doc-hyper-link label (read-inline ctx {#mark;#num-it;}))
     in
     % ページ下部に出現するブロック
     let bb =
@@ -979,10 +988,13 @@ end = struct
             |> set-leading font-size
             |> set-paragraph-margin 0pt font-size
       in
-      let num-ib =
+      let num-it =
         !footnote-count
         |> arabic
         |> embed-string
+      in 
+      let num-ib =
+        {#mark;#num-it;}
         |> read-inline ctx
         |> register-doc-hyper-link label
       in
@@ -1014,6 +1026,7 @@ end = struct
         | (Some(i), Some(j)) -> (
           if i < j then footnote-line ctx else block-nil
         )
+        | (None, _) -> footnote-line ctx
         | _ -> block-nil
     in
     let () = is-first-footnote <- false in
@@ -1025,13 +1038,13 @@ end = struct
     let ctx = make-ctx !text-width-ref in
     let () = thanks-count <- !thanks-count + 1 in
     let mark =
-      if List.length !thanks-mark-ref == 0 then
+      if List.length !thanks-marks-ref == 0 then
         {}
       else
         let n =
-          !thanks-count mod (List.length !thanks-mark-ref)
+          !thanks-count mod (List.length !thanks-marks-ref)
         in
-        match List.nth (n - 1) !thanks-mark-ref with
+        match List.nth (n - 1) !thanks-marks-ref with
         | None -> {}
         | Some(s) -> embed-string s
     in
