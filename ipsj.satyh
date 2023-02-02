@@ -1,0 +1,64 @@
+@import: class
+
+module IPSJ : sig
+  val set-config : Cls.config -> Cls.config
+  val set-title : inline-text list -> inline-text -> Cls.config -> Cls.config
+  direct \author : [inline-text; inline-text; inline-text] inline-cmd
+end = struct
+
+  let font-size = 10pt
+  let columnsep = 7mm
+
+  let set-config c =
+    c
+    |> Cls.set-columnsep columnsep
+    |> Cls.set-normal-font-size font-size
+    |> Cls.set-top-margin 30mm
+    |> Cls.set-bottom-margin 25mm
+    |> Cls.set-left-margin 20mm
+    |> Cls.set-right-margin 20mm
+    |> Cls.set-multicolumn 2
+    |> Cls.set-width-page 210mm
+    |> Cls.set-height-page 297mm
+    |> Cls.set-thanks-marks []
+
+  let set-title titleJp-lst titleEn config =
+    match titleJp-lst with
+    | [] -> Cls.set-title {\footnote?:(false)?:(false)(titleEn);} config
+    | x::xs ->
+      Cls.set-title-multiline ({#x;\footnote?:(false)?:(false)(titleEn);}::xs) config
+
+  let-mutable author-count <- 0
+  let-inline ctx \author affiliate name en =
+    let () = author-count <- !author-count + 1 in
+    let thanks = read-inline ctx {\thanks{#en;}} in
+    let mark = `*` ^ arabic !author-count in
+    let font-size = get-font-size ctx in
+    let mark-ctx =
+      ctx |> set-font-size (font-size *' 0.75)
+          |> set-manual-rising (font-size *' 0.25)
+    in
+    let mark =
+      mark
+      |> embed-string
+      |> read-inline mark-ctx
+    in
+    let affiliate = read-inline ctx affiliate ++ mark ++ thanks in
+    let name = read-inline ctx name ++ mark in
+    let a-w = get-natural-width affiliate in
+    let n-w = get-natural-width name in
+    let width =
+      if a-w >' n-w then
+        a-w
+      else
+        n-w
+    in
+    embed-block-top ctx width (fun ctx -> (
+      let a-space = (width -' a-w) *' 0.5 in
+      let n-space = (width -' n-w) *' 0.5 in
+      line-break true false ctx (inline-skip a-space ++ affiliate ++ inline-skip a-space)
+      +++
+      line-break false true ctx (inline-skip n-space ++ name ++ inline-skip n-space)
+    ))
+
+end
