@@ -18,6 +18,7 @@ Supported basic functions for writing documents.
 - reference
 - footnote
 - url
+- change font
 - manually hand ring for minor style changes
 
 See `demo.saty` and `class.satyh` for more information
