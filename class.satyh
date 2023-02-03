@@ -61,9 +61,9 @@ module Cls : sig
   direct +section : [string?; bool?; string?; inline-text; block-text] block-cmd
   direct +p : [inline-text] block-cmd
 
-  direct \footnote : [bool?; bool?; inline-text] inline-cmd
+  direct \footnote : [inline-text?; inline-text] inline-cmd
 
-  direct \thanks : [inline-text] inline-cmd
+  direct \thanks : [inline-text?; inline-text] inline-cmd
 
   direct +figure : [string?; position?; inline-text; block-text] block-cmd
   direct +table : [string?; position?; inline-text; block-text] block-cmd
@@ -1089,38 +1089,23 @@ end = struct
 
   let-mutable footnote-count <- 0
   let-mutable footnote-label-count <- 0
-  let-inline ctx \footnote ?:is-show-num-opt ?:is-show-mark-opt content =
-    let is-show-num =
-      match is-show-num-opt with
-      | Some(b) -> b
-      | None -> true
-    in
-    let is-show-mark =
-      match is-show-mark-opt with
-      | Some(b) -> b
-      | None -> true
-    in
+  let-inline ctx \footnote ?:manual-mark  content =
     let () =
-      if is-show-num then
-        footnote-count <- !footnote-count + 1
-      else
-        ()
+      match manual-mark with
+      | Some(_) -> ()
+      | None -> footnote-count <- !footnote-count + 1
     in
     let () = footnote-label-count <- !footnote-label-count + 1 in
     let label = `footnote:` ^ (arabic !footnote-label-count) in
     let mark =
-      if is-show-mark then
-        !footnote-mark-ref
-      else
-        {}
+      match manual-mark with
+      | Some(mark) -> mark
+      | None -> !footnote-mark-ref
     in
     let num-it =
-      if is-show-num then
-        !footnote-count
-        |> arabic
-        |> embed-string
-      else
-        {}
+      match manual-mark with
+      | Some(_) -> {}
+      | None -> !footnote-count |> arabic |> embed-string
     in
     let font-size = get-font-size ctx in
     % *1などの表示部分
@@ -1184,19 +1169,23 @@ end = struct
       hook ++ ib
 
   let-mutable thanks-count <- 0
-  let-inline ctx \thanks content =
+  let-inline ctx \thanks ?:manual-mark content =
     let ctx = make-ctx !text-width-ref in
     let () = thanks-count <- !thanks-count + 1 in
     let mark =
-      if List.length !thanks-marks-ref == 0 then
-        {}
-      else
-        let n =
-          !thanks-count mod (List.length !thanks-marks-ref)
-        in
-        match List.nth (n - 1) !thanks-marks-ref with
-        | None -> {}
-        | Some(s) -> embed-string s
+      match manual-mark with
+      | Some(m) -> m
+      | None -> (
+        if List.length !thanks-marks-ref == 0 then
+          {}
+        else
+          let n =
+            !thanks-count mod (List.length !thanks-marks-ref)
+          in
+          match List.nth (n - 1) !thanks-marks-ref with
+          | None -> {}
+          | Some(s) -> embed-string s
+      )
     in
     let font-size = font-size-author () in
     % †などの表示部分

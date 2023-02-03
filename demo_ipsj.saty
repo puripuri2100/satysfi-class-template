@@ -1,0 +1,27 @@
+@import: class
+@import: ipsj
+
+
+Cls.document (
+  Cls.default-config
+  |> IPSJ.set-config
+  |> IPSJ.set-title {|日本語のタイトル|長くても改行可能|}{English Title}
+  |> Cls.set-author {
+    \author{\@puripuri2100}{筑波大学}{\@puripuri2100, University of Tsukuba}
+    \author{\@puripuri21002}{筑波大学}{\@puripuri21002, University of Tsukuba}
+  }
+) '<
+  +section {はじめに} <
+    +p{情報処理学会全国大会用の\SATySFi;テンプレートは今まで存在していなかった。}
+  >
+  +section {提案手法} <
+    +p{筆者が作成したsatysfi-class-templateというカスタマイズ可能なクラスファイル\cite[`class-template`];を使用し、これらの設定項目の値を情報処理学会全国大会の様式に合うように設定した。}
+  >
+  +section {おわりに} <
+    +p{情報処理学会全国大会用の\SATySFi;テンプレートを作成し、GitHubで公開した\cite[`ipsj-template`];。}
+  >
+  +thebibliography [
+    Cls.bibitem `class-template` {puripuri2100. "Template of SATySFi class file". \url(`https://github.com/puripuri2100/satysfi-class-template`);, accessed 2023-02-03.};
+    Cls.bibitem `ipsj-template` {puripuri2100. \url(`https://github.com/puripuri2100/satysfi-class-template/blob/master/ipsj.satyh`);, accessed 2023-02-03.};
+  ];
+>

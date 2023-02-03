@@ -6,7 +6,7 @@ module IPSJ : sig
   direct \author : [inline-text; inline-text; inline-text] inline-cmd
 end = struct
 
-  let font-size = 10pt
+  let font-size = 12pt
   let columnsep = 7mm
 
   let set-config c =
@@ -20,30 +20,31 @@ end = struct
     |> Cls.set-multicolumn 2
     |> Cls.set-width-page 210mm
     |> Cls.set-height-page 297mm
-    |> Cls.set-thanks-marks []
 
   let set-title titleJp-lst titleEn config =
     match titleJp-lst with
-    | [] -> Cls.set-title {\footnote?:(false)?:(false)(titleEn);} config
+    | [] -> Cls.set-title {\footnote?:({})(titleEn);} config
     | x::xs ->
-      Cls.set-title-multiline ({#x;\footnote?:(false)?:(false)(titleEn);}::xs) config
+      Cls.set-title-multiline ({#x;\footnote?:({})(titleEn);}::xs) config
+
+
+  let-inline ctx \thanks-mark n =
+    let font-size = get-font-size ctx in
+    let mark = embed-string (`*` ^ arabic n) in
+    let mark-ctx =
+      ctx |> set-font-size (font-size *' 0.9)
+          |> set-manual-rising (font-size *' 0.25)
+    in
+    let mark = read-inline mark-ctx mark in
+    mark
 
   let-mutable author-count <- 0
   let-inline ctx \author affiliate name en =
     let () = author-count <- !author-count + 1 in
-    let thanks = read-inline ctx {\thanks{#en;}} in
-    let mark = `*` ^ arabic !author-count in
+    let thanks = read-inline ctx {\thanks?:({\thanks-mark(!author-count);}){#en;}} in
+    let mark = read-inline ctx {\thanks-mark(!author-count);} in
     let font-size = get-font-size ctx in
-    let mark-ctx =
-      ctx |> set-font-size (font-size *' 0.75)
-          |> set-manual-rising (font-size *' 0.25)
-    in
-    let mark =
-      mark
-      |> embed-string
-      |> read-inline mark-ctx
-    in
-    let affiliate = read-inline ctx affiliate ++ mark ++ thanks in
+    let affiliate = read-inline ctx affiliate ++ thanks in
     let name = read-inline ctx name ++ mark in
     let a-w = get-natural-width affiliate in
     let n-w = get-natural-width name in
