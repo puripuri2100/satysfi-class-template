@@ -33,6 +33,9 @@ module Cls : sig
   val set-title-page : bool -> config -> config
   val set-bib-page : bool -> config -> config
   val set-normal-font-size : length -> config -> config
+  val set-leading-ratio : float -> config -> config
+  val set-paragraph-margin-top-ratio : float -> config -> config
+  val set-paragraph-margin-bottom-ratio : float -> config -> config
   val set-height-page : length -> config -> config
   val set-width-page : length -> config -> config
   val set-left-margin : length -> config -> config
@@ -113,6 +116,9 @@ end = struct
     title-page    : bool;
     bib-page      : bool;
     normal-font-size : length;
+    leading-ratio : float;
+    paragraph-margin-top-ratio : float;
+    paragraph-margin-bottom-ratio : float;
     height-page   : length;
     width-page    : length;
     left-margin   : length;
@@ -143,6 +149,9 @@ end = struct
     title-page    = false;
     bib-page      = false;
     normal-font-size = 12pt;
+    leading-ratio = 0.3;
+    paragraph-margin-top-ratio = 0.3;
+    paragraph-margin-bottom-ratio = 0.3;
     height-page   = 297mm;
     width-page    = 210mm;
     left-margin   = (210mm -' (12pt *' 40.0)) *' 0.5;
@@ -213,6 +222,21 @@ end = struct
   let set-normal-font-size normal-font-size config =
     let () = normal-font-size-ref <- normal-font-size in
     (| config with normal-font-size = normal-font-size; |)
+
+  let-mutable leading-ratio-ref <- default-config#leading-ratio
+  let set-leading-ratio leading-ratio config =
+    let () = leading-ratio-ref <- leading-ratio in
+    (| config with leading-ratio = leading-ratio; |)
+
+  let-mutable paragraph-margin-top-ratio-ref <- default-config#paragraph-margin-top-ratio
+  let set-paragraph-margin-top-ratio paragraph-margin-top-ratio config =
+    let () = paragraph-margin-top-ratio-ref <- paragraph-margin-top-ratio in
+    (| config with paragraph-margin-top-ratio = paragraph-margin-top-ratio; |)
+
+  let-mutable paragraph-margin-bottom-ratio-ref <- default-config#paragraph-margin-bottom-ratio
+  let set-paragraph-margin-bottom-ratio paragraph-margin-bottom-ratio config =
+    let () = paragraph-margin-bottom-ratio-ref <- paragraph-margin-bottom-ratio in
+    (| config with paragraph-margin-bottom-ratio = paragraph-margin-bottom-ratio; |)
 
   let set-height-page height-page config =
     (| config with height-page = height-page; |)
@@ -305,6 +329,7 @@ end = struct
 
 
   let make-ctx width =
+    let fs = font-size-normal () in
     get-initial-context width (command \math)
       |> set-font-size (font-size-normal ())
       |> set-dominant-wide-script Kana
@@ -318,6 +343,12 @@ end = struct
       |> set-math-font `lmodern`
       |> set-manual-rising 0pt % 文字の上下の補正値
       |> set-text-color Color.black
+      |> set-paragraph-margin
+          (fs *' !paragraph-margin-top-ratio-ref)
+          (fs *' !paragraph-margin-bottom-ratio-ref)
+      |> set-leading (fs *' !leading-ratio-ref)
+      |> set-min-gap-of-lines (fs *' !leading-ratio-ref)
+      %|> set-min-paragraph-ascender-and-descender 0pt 0pt
 
 
     % ページ番号を開始する位置を記録する
@@ -580,9 +611,11 @@ end = struct
       if c#show-title then
         % TODO: タイトルを作成する
         let title-block = (
+            let fs = font-size-title () in
             let ctx =
-              ctx |> set-font-size (font-size-title ())
+              ctx |> set-font-size fs
                   |> set-headline-font
+                  |> set-paragraph-margin (fs *' !leading-ratio-ref) (fs *' !leading-ratio-ref)
             in
             let f it =
               line-break false false ctx (
@@ -596,8 +629,11 @@ end = struct
         in
         let author-block =
           let f it =
+            let fs = font-size-author () in
             let ctx =
-              ctx |> set-font-size (font-size-author ())
+              ctx |> set-font-size fs
+                  |> set-headline-font
+                  |> set-paragraph-margin (fs *' !leading-ratio-ref) (fs *' !leading-ratio-ref)
             in
             line-break false false ctx (
               inline-fil ++ read-inline ctx it ++ inline-fil
@@ -611,8 +647,13 @@ end = struct
           match c#date with
           | None -> block-nil
           | Some(date) -> (
+            let fs = font-size-date () in
             let ctx =
-              ctx |> set-font-size (font-size-date ())
+              ctx |> set-font-size fs
+                  |> set-headline-font
+                  |> set-paragraph-margin
+                      (fs *' !paragraph-margin-top-ratio-ref)
+                      (fs *' !paragraph-margin-bottom-ratio-ref)
             in
             line-break false false ctx (
               inline-fil ++ read-inline ctx date ++ inline-fil
@@ -623,7 +664,9 @@ end = struct
         if c#title-page then
           let main =
             title-block +++
+            block-skip (font-size-normal () *' 2.0) +++
             author-block +++
+            block-skip (font-size-normal ()) +++
             date-block
           in
           let text-height =
@@ -633,7 +676,9 @@ end = struct
             +++ main
         else
           title-block +++
+          block-skip (font-size-normal () *' 0.5) +++
           author-block +++
+          block-skip 0pt +++
           date-block +++
           block-skip 0pt +++
           abstract-block +++
@@ -996,7 +1041,10 @@ end = struct
     let title-ib =
       section-title-format ctx (List.reverse !sec-num-lst) label-opt is-omit-num outline-title-opt title
     in
-    let title-bb = line-break true false ctx (title-ib ++ inline-fil) in
+    let title-ctx =
+      ctx |> set-paragraph-margin (font-size-normal () *' 2.0) (font-size-normal () *' 1.5)
+    in
+    let title-bb = line-break true false title-ctx (title-ib ++ inline-fil) in
     let () = sec-num <- 0 in
     let bb = read-block ctx inner in
     let () = sec-num-lst <- old-sec-num-lst in
