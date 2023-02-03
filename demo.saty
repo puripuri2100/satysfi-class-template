@@ -65,7 +65,7 @@ Cls.document (
   >
 
   +thebibliography [
-    Cls.bibitem `item1` {hoge, fuga.};
+    Cls.bibitem `item1` {puripuri2100. "Template of SATySFi class file". \url(`https://github.com/puripuri2100/satysfi-class-template`);, accessed 2023-02-03.};
     Cls.bibitem `item2` {hoge, fuga.};
     Cls.bibitem `item3` {hoge, fuga.};
     Cls.bibitem `item4` {hoge, fuga.};

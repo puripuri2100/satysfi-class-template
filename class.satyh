@@ -1337,15 +1337,20 @@ end = struct
     % ここを修正すれば思い通りの状態にできる
     let text = {[#it-num;]} in
     let space = inline-skip (get-font-size ctx) in
-    register-doc-hyper-link label (
-      read-inline ctx text ++ space ++ read-inline ctx inner ++ inline-fil
-    )
+    let head-ib = read-inline ctx text ++ space in
+    let head-width = get-natural-width head-ib in
+    let pads = (head-width, 0pt, 0pt, 0pt) in
+    block-frame-breakable ctx pads VDecoSet.empty (fun ctx -> (
+      let ib =
+        inline-skip (head-width *' -1.0) ++ head-ib ++ read-inline ctx inner ++ inline-fil
+      in
+      line-break true true ctx ib
+    ))
 
   let-block ctx +thebibliography bibitems =
     let main =
       bibitems
       |> List.map (fun (k, v) -> bib-scheme ctx k v)
-      |> List.map (fun ib -> line-break true true ctx ib)
       |> List.fold-left (+++) block-nil
     in
     let header-text = !bib-title-ref in
