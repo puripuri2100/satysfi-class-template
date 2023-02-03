@@ -4,6 +4,7 @@
 @require: annot
 @require: vdecoset
 @require: option
+@require: pervasives
 
 module Cls : sig
 
@@ -43,7 +44,10 @@ module Cls : sig
   val set-abstract : block-text -> config -> config
   val set-thanks-marks : string list -> config -> config
   val set-footnote-mark : inline-text -> config -> config
-
+  val set-text-font-cjk   : (string * float * float) -> config -> config
+  val set-text-font-latin : (string * float * float) -> config -> config
+  val set-headline-font-cjk   : (string * float * float) -> config -> config
+  val set-headline-font-latin : (string * float * float) -> config -> config
 
   direct +abstract : [inline-text?; block-text] block-cmd
 
@@ -76,6 +80,23 @@ end = struct
   let top = Top
   let here = Here
 
+
+  type font-info = (|
+    text-cjk       : (string * float * float);
+    text-latin     : (string * float * float);
+    headline-cjk   : (string * float * float);
+    headline-latin : (string * float * float);
+  |)
+
+
+  let default-font = (|
+    text-cjk       = (`ipaexm`, 1.0, 0.0);
+    text-latin     = (`ipaexm`, 1.0, 0.0);
+    headline-cjk   = (`ipaexg`, 1.0, 0.0);
+    headline-latin = (`lmsans`, 1.0, 0.0);
+  |)
+
+
   % 設定の中身は単なるレコードだが、隠蔽することによって後方互換性を保てるようにする
   type config = (|
     title         : inline-text list;
@@ -103,6 +124,7 @@ end = struct
     abstract      : block-text option;
     thanks-marks  : string list;
     footnote-mark : inline-text;
+    font-info     : font-info;
   |)
 
 
@@ -130,8 +152,9 @@ end = struct
     multicolumn   = 1;
     columnsep     = 20pt;
     abstract      = None;
-    thanks-marks   = [`*`; `†`; `‡`];
+    thanks-marks  = [`*`; `†`; `‡`];
     footnote-mark = {†};
+    font-info     = default-font;
   |)
 
 
@@ -228,27 +251,47 @@ end = struct
       let () = footnote-mark-ref <- mark in
       (| config with footnote-mark = mark;|)
 
-  % フォントサイズ補正
-  let font-ratio-latin = 1.
-  let font-ratio-cjk = 0.88
+  let-mutable font-info-ref <- default-font
+  let set-text-font-cjk font config =
+    let font-info = config#font-info in
+    let new = (| font-info with text-cjk = font; |) in
+    let () = font-info-ref <- new in
+    (| config with font-info = new; |)
 
-  % (フォント名, フォントサイズ補正, ベースライン補正)
-  let font-latin-roman = (`Junicode`, font-ratio-latin, 0.)
-  let font-latin-bold = (`Junicode-b`, font-ratio-latin, 0.)
-  let font-latin-italic = (`Junicode-it`, font-ratio-latin, 0.)
-  let font-latin-sans = (`lmsans`, font-ratio-latin, 0.)
-  let font-latin-mono = (`lmmono`, font-ratio-latin, 0.)
-  let font-cjk-mincho = (`ipaexm`, font-ratio-cjk, 0.)
-  let font-cjk-gothic = (`ipaexg`, font-ratio-cjk, 0.)
+  let set-text-font-latin font config =
+    let font-info = config#font-info in
+    let new = (| font-info with text-latin = font; |) in
+    let () = font-info-ref <- new in
+    (| config with font-info = new; |)
+
+  let set-headline-font-cjk font config =
+    let font-info = config#font-info in
+    let new = (| font-info with headline-cjk = font; |) in
+    let () = font-info-ref <- new in
+    (| config with font-info = new; |)
+
+  let set-headline-font-latin font config =
+    let font-info = config#font-info in
+    let new = (| font-info with headline-latin = font; |) in
+    let () = font-info-ref <- new in
+    (| config with font-info = new; |)
+
 
   % フォント変更用関数
-  let set-cjk-font font-name ctx =
-    ctx |> set-font HanIdeographic font-name
-        |> set-font Kana font-name
+  let set-text-font ctx =
+    let info = !font-info-ref in
+    ctx |> set-font HanIdeographic info#text-cjk
+        |> set-font Kana           info#text-cjk
+        |> set-font Latin          info#text-latin
+        |> set-font OtherScript    info#text-cjk
 
 
-  let set-latin-font font-name ctx =
-    ctx |> set-font Latin font-name
+  let set-headline-font ctx =
+    let info = !font-info-ref in
+    ctx |> set-font HanIdeographic info#headline-cjk
+        |> set-font Kana           info#headline-cjk
+        |> set-font Latin          info#headline-latin
+        |> set-font OtherScript    info#headline-cjk
 
 
   % フォントサイズ
@@ -267,10 +310,10 @@ end = struct
       |> set-dominant-wide-script Kana
       |> set-language Kana Japanese
       |> set-language HanIdeographic Japanese
-      |> set-cjk-font font-cjk-mincho
+      |> set-language OtherScript Japanese
       |> set-dominant-narrow-script Latin
       |> set-language Latin English
-      |> set-latin-font font-latin-roman
+      |> set-text-font
       |> set-hyphen-penalty 100
       |> set-math-font `lmodern`
       |> set-manual-rising 0pt % 文字の上下の補正値
@@ -539,8 +582,7 @@ end = struct
         let title-block = (
             let ctx =
               ctx |> set-font-size (font-size-title ())
-                  |> set-cjk-font font-cjk-gothic
-                  |> set-latin-font font-latin-sans
+                  |> set-headline-font
             in
             let f it =
               line-break false false ctx (
@@ -697,8 +739,7 @@ end = struct
               let indent = font-size-section () in
               let ctx =
                 ctx |> set-font-size (font-size-subsection ())
-                    |> set-cjk-font font-cjk-gothic
-                    |> set-latin-font font-latin-sans
+                    |> set-headline-font
               in
               let num-ib =
                 num
@@ -750,8 +791,7 @@ end = struct
         let toc-title =
           let ctx =
             ctx |> set-font-size (font-size-section ())
-                |> set-cjk-font font-cjk-gothic
-                |> set-latin-font font-latin-sans
+                |> set-headline-font
           in
           ((read-inline ctx {目次}) ++ inline-fil)
           |> line-break true false ctx
@@ -855,8 +895,7 @@ end = struct
         ctx |> set-font-size (font-size *' 0.8)
       in
       let title-ctx =
-        ctx |> set-cjk-font font-cjk-gothic
-            |> set-latin-font font-latin-bold
+        ctx |> set-headline-font
       in
       let title =
         line-break true false ctx (inline-fil ++ read-inline title-ctx title-it ++ inline-fil)
@@ -867,6 +906,7 @@ end = struct
 
   let indent ctx =
     let font-size = get-font-size ctx in
+    let (_,font-ratio-cjk,_) = get-font Kana ctx in
     inline-skip (font-size *' font-ratio-cjk)
 
   let-block ctx +p it =
@@ -887,8 +927,7 @@ end = struct
         | 2 -> font-size-subsection ()
         | _ -> font-size-subsubsection ()
       in
-      ctx |> set-cjk-font font-cjk-gothic
-          |> set-latin-font font-latin-sans
+      ctx |> set-headline-font
           |> set-font-size font-size
     in
     let title-ib =
@@ -1227,8 +1266,7 @@ end = struct
     let header-text = {参考文献} in
     let header-ctx =
       ctx |> set-font-size (font-size-section ())
-          |> set-cjk-font font-cjk-gothic
-          |> set-latin-font font-latin-sans
+          |> set-headline-font
           |> set-paragraph-margin (font-size-section ()) (font-size-normal ())
     in
     let header-ib = read-inline header-ctx header-text ++ inline-fil in
