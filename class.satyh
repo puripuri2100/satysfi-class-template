@@ -51,6 +51,10 @@ module Cls : sig
   val set-text-font-latin : (string * float * float) -> config -> config
   val set-headline-font-cjk   : (string * float * float) -> config -> config
   val set-headline-font-latin : (string * float * float) -> config -> config
+  val set-toc-title : inline-text -> config -> config
+  val set-figure-title : inline-text -> config -> config
+  val set-table-title : inline-text -> config -> config
+  val set-bib-title : inline-text -> config -> config
 
   direct +abstract : [inline-text?; block-text] block-cmd
 
@@ -131,6 +135,10 @@ end = struct
     thanks-marks  : string list;
     footnote-mark : inline-text;
     font-info     : font-info;
+    toc-title     : inline-text;
+    figure-title  : inline-text;
+    table-title   : inline-text;
+    bib-title     : inline-text;
   |)
 
 
@@ -164,6 +172,10 @@ end = struct
     thanks-marks  = [`*`; `†`; `‡`];
     footnote-mark = {†};
     font-info     = default-font;
+    toc-title     = {目次};
+    figure-title  = {図};
+    table-title   = {表};
+    bib-title     = {参考文献};
   |)
 
 
@@ -299,6 +311,29 @@ end = struct
     let new = (| font-info with headline-latin = font; |) in
     let () = font-info-ref <- new in
     (| config with font-info = new; |)
+
+
+  let-mutable toc-title-ref <- default-config#toc-title
+  let set-toc-title title config =
+    let () = toc-title-ref <- title in
+    (| config with toc-title = title; |)
+
+  let-mutable figure-title-ref <- default-config#figure-title
+  let set-figure-title title config =
+    let () = figure-title-ref <- title in
+    (| config with figure-title = title; |)
+
+  let-mutable table-title-ref <- default-config#table-title
+  let set-table-title title config =
+    let () = table-title-ref <- title in
+    (| config with table-title = title; |)
+
+  let-mutable bib-title-ref <- default-config#bib-title
+  let set-bib-title title config =
+    let () = bib-title-ref <- title in
+    (| config with bib-title = title; |)
+
+
 
 
   % フォント変更用関数
@@ -838,7 +873,7 @@ end = struct
             ctx |> set-font-size (font-size-section ())
                 |> set-headline-font
           in
-          ((read-inline ctx {目次}) ++ inline-fil)
+          ((read-inline ctx !toc-title-ref) ++ inline-fil)
           |> line-break true false ctx
         in
         if c#title-page then
@@ -1223,7 +1258,8 @@ end = struct
     let ib-hook = register-cross-reference-page label in
     let fig-num-it = embed-string num in
     let caption-ib =
-      inline-fil ++ read-inline ctx {図#fig-num-it;：#caption;} ++ ib-hook ++ inline-fil
+      let t = !figure-title-ref in
+      inline-fil ++ read-inline ctx {#t;#fig-num-it;：#caption;} ++ ib-hook ++ inline-fil
       |> register-doc-hyper-link label
     in
     let bb = read-block ctx inner +++ (line-break false true ctx caption-ib) in
@@ -1255,7 +1291,8 @@ end = struct
     let ib-hook = register-cross-reference-page label in
     let fig-num-it = embed-string num in
     let caption-ib =
-      inline-fil ++ read-inline ctx {表#fig-num-it;：#caption;} ++ ib-hook ++ inline-fil
+      let t = !table-title-ref in
+      inline-fil ++ read-inline ctx {#t;#fig-num-it;：#caption;} ++ ib-hook ++ inline-fil
       |> register-doc-hyper-link label
     in
     let bb = (line-break false true ctx caption-ib) +++ read-block ctx inner in
@@ -1311,7 +1348,7 @@ end = struct
       |> List.map (fun ib -> line-break true true ctx ib)
       |> List.fold-left (+++) block-nil
     in
-    let header-text = {参考文献} in
+    let header-text = !bib-title-ref in
     let header-ctx =
       ctx |> set-font-size (font-size-section ())
           |> set-headline-font
