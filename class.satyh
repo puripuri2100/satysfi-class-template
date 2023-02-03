@@ -176,17 +176,17 @@ end = struct
   let set-show-footer show-footer config =
     (| config with show-footer = show-footer; |)
 
-  let-mutable is-title-page-ref <- false
+  let-mutable is-title-page-ref <- default-config#title-page
   let set-title-page title-page config =
     let () = is-title-page-ref <- title-page in
     (| config with title-page = title-page; |)
 
-  let-mutable is-bib-page-ref <- false
+  let-mutable is-bib-page-ref <- default-config#bib-page
   let set-bib-page bib-page config =
     let () = is-bib-page-ref <- bib-page in
     (| config with bib-page = bib-page; |)
 
-  let-mutable normal-font-size-ref <- 12pt
+  let-mutable normal-font-size-ref <- default-config#normal-font-size
   let set-normal-font-size normal-font-size config =
     let () = normal-font-size-ref <- normal-font-size in
     (| config with normal-font-size = normal-font-size; |)
@@ -218,12 +218,12 @@ end = struct
   let set-abstract abstract config =
     (| config with abstract = Some(abstract); |)
 
-  let-mutable thanks-marks-ref <- [`*`; `†`; `‡`]
+  let-mutable thanks-marks-ref <- default-config#thanks-marks
   let set-thanks-marks marks config =
       let () = thanks-marks-ref <- marks in
       (| config with thanks-marks = marks;|)
 
-  let-mutable footnote-mark-ref <- {†}
+  let-mutable footnote-mark-ref <- default-config#footnote-mark
   let set-footnote-mark mark config =
       let () = footnote-mark-ref <- mark in
       (| config with footnote-mark = mark;|)
