@@ -4,10 +4,10 @@
 
 Cls.document (
   Cls.default-config
-  |> Cls.set-title {タイトル\footnote?:(false)?:(false){title}}
+  |> Cls.set-title {タイトル\footnote{title}}
   |> Cls.set-author {\@puripuri2100\thanks{\url(`https://github.com/puripuri2100`);} \@puripuri2100\thanks{\url(`https://github.com/puripuri2100`);}}
   |> Cls.set-show-toc true
-  |> Cls.set-title-page false
+  |> Cls.set-title-page true
   |> Cls.set-multicolumn 2
   |> Cls.set-abstract ('<
     +abstract ?:({Abstract}) <
@@ -27,7 +27,7 @@ Cls.document (
       >
     >
     +section {タイトル4} <
-      +p{Cras\footnote?:(false){test} bibendum elit vel tellus ultrices vestibulum. Curabitur euismod tempus ex. Aliquam sed lectus at nulla porttitor ornare vitae ac odio. Donec volutpat augue ac quam elementum sollicitudin. Donec ac metus in urna auctor lobortis volutpat dictum quam. Cras id quam sed erat tempor tempor id et leo. Integer nisl justo, pellentesque sit amet enim et, mattis commodo enim. Morbi eu suscipit metus. Donec venenatis orci velit, vel consectetur erat iaculis ut. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae\; Donec vitae euismod augue. Cras at nibh ipsum. Maecenas sit amet justo gravida, vestibulum magna sed, euismod felis. Sed a felis nunc.\footnote{Nam id eleifend massa. Maecenas et tellus mauris. Donec molestie nunc at mi vulputate, a condimentum est ornare.}}
+      +p{Cras bibendum elit vel tellus ultrices vestibulum. Curabitur euismod tempus ex. Aliquam sed lectus at nulla porttitor ornare vitae ac odio. Donec volutpat augue ac quam elementum sollicitudin. Donec ac metus in urna auctor lobortis volutpat dictum quam. Cras id quam sed erat tempor tempor id et leo. Integer nisl justo, pellentesque sit amet enim et, mattis commodo enim. Morbi eu suscipit metus. Donec venenatis orci velit, vel consectetur erat iaculis ut. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae\; Donec vitae euismod augue. Cras at nibh ipsum. Maecenas sit amet justo gravida, vestibulum magna sed, euismod felis. Sed a felis nunc.\footnote{Nam id eleifend massa. Maecenas et tellus mauris. Donec molestie nunc at mi vulputate, a condimentum est ornare.}}
 
       +table ?* ?:(Cls.top) {caption} <
       +p{Lorem ipsum dolor sit amet, consectetur adipiscing elit. Mauris rutrum gravida egestas. Donec vulputate egestas lobortis. Aenean auctor magna a semper dictum. Donec finibus ligula vel dui egestas, quis fringilla nulla euismod. Aliquam sollicitudin massa id mi euismod, eu dictum massa ultricies. Sed mollis vel dolor ut convallis. Aliquam condimentum interdum leo in consequat. Phasellus at rhoncus odio. Morbi efficitur condimentum metus vel consectetur.}

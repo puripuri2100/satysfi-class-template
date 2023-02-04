@@ -732,7 +732,7 @@ end = struct
       let () =
         now-page-num <- pbinfo#page-number - start-page + 1
       in
-      let (bb, lst) = break-float-boxes !now-page-num (text-height -' top-pad) !float-boxes in
+      let (bb, lst) = break-float-boxes pbinfo#page-number (text-height -' top-pad) !float-boxes in
       let float-len =
         if c#show-title && pbinfo#page-number == 1 then
           get-natural-length bb-title
@@ -764,7 +764,7 @@ end = struct
           let space = (text-height -' h) *' 0.35 in
           block-skip space +++ abstract-block
         else
-          let (bb, new-float-boxes) = break-float-boxes !now-page-num (text-height -' top-pad) !float-boxes in
+          let (bb, new-float-boxes) = break-float-boxes pbinfo#page-number (text-height -' top-pad) !float-boxes in
           let () = float-boxes <- new-float-boxes in
           bb
       in
@@ -1252,11 +1252,10 @@ end = struct
       |> register-doc-hyper-link label
     in
     let bb = read-block ctx inner +++ (line-break false true ctx caption-ib) in
-    let start-page = get-start-page () in
     match position-opt with
     | Some(Top) -> (
       hook-page-break-block (fun pbinfo _ -> (
-        float-boxes <- (pbinfo#page-number - start-page + 1, bb) :: !float-boxes
+        float-boxes <- (pbinfo#page-number, bb) :: !float-boxes
       )) +++ block-skip 0pt
     )
     | _ -> bb
@@ -1285,11 +1284,10 @@ end = struct
       |> register-doc-hyper-link label
     in
     let bb = (line-break false true ctx caption-ib) +++ read-block ctx inner in
-    let start-page = get-start-page () in
     match position-opt with
     | Some(Top) -> (
       hook-page-break-block (fun pbinfo _ -> (
-        float-boxes <- (pbinfo#page-number - start-page + 2, bb) :: !float-boxes
+        float-boxes <- (pbinfo#page-number, bb) :: !float-boxes
       )) +++ block-skip 0pt
     )
     | _ -> bb
