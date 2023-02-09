@@ -877,7 +877,7 @@ end = struct
               inline-skip indent ++ num-ib ++ inline-skip (font-size-normal ()) ++ title-ib ++ fil-dots ++ inline-fil ++ page-num-ib
             )
           in
-            line-break true true ctx main-ib
+            line-break true true ctx (doc-hyper-link label main-ib)
         in
         let toc-main =
           !toc-ref
