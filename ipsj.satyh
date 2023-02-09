@@ -1,8 +1,8 @@
-@import: class
+@import: class-template
 
 module IPSJ : sig
-  val set-config : Cls.config -> Cls.config
-  val set-title : inline-text list -> inline-text -> Cls.config -> Cls.config
+  val set-config : ClassTemplate.config -> ClassTemplate.config
+  val set-title : inline-text list -> inline-text -> ClassTemplate.config -> ClassTemplate.config
   direct \author : [inline-text; inline-text; inline-text] inline-cmd
 end = struct
 
@@ -11,21 +11,21 @@ end = struct
 
   let set-config c =
     c
-    |> Cls.set-columnsep columnsep
-    |> Cls.set-normal-font-size font-size
-    |> Cls.set-top-margin 30mm
-    |> Cls.set-bottom-margin 25mm
-    |> Cls.set-left-margin 20mm
-    |> Cls.set-right-margin 20mm
-    |> Cls.set-multicolumn 2
-    |> Cls.set-width-page 210mm
-    |> Cls.set-height-page 297mm
+    |> ClassTemplate.set-columnsep columnsep
+    |> ClassTemplate.set-normal-font-size font-size
+    |> ClassTemplate.set-top-margin 30mm
+    |> ClassTemplate.set-bottom-margin 25mm
+    |> ClassTemplate.set-left-margin 20mm
+    |> ClassTemplate.set-right-margin 20mm
+    |> ClassTemplate.set-multicolumn 2
+    |> ClassTemplate.set-width-page 210mm
+    |> ClassTemplate.set-height-page 297mm
 
   let set-title titleJp-lst titleEn config =
     match titleJp-lst with
-    | [] -> Cls.set-title {\footnote?:({})(titleEn);} config
+    | [] -> ClassTemplate.set-title {\footnote?:({})(titleEn);} config
     | x::xs ->
-      Cls.set-title-multiline ({#x;\footnote?:({})(titleEn);}::xs) config
+      ClassTemplate.set-title-multiline ({#x;\footnote?:({})(titleEn);}::xs) config
 
 
   let-inline ctx \thanks-mark n =

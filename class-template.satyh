@@ -6,7 +6,7 @@
 @require: option
 @require: pervasives
 
-module Cls : sig
+module ClassTemplate : sig
 
   type position
   val top : position
@@ -52,8 +52,8 @@ module Cls : sig
   val set-headline-font-cjk   : (string * float * float) -> config -> config
   val set-headline-font-latin : (string * float * float) -> config -> config
   val set-toc-title : inline-text -> config -> config
-  val set-figure-title : inline-text -> config -> config
-  val set-table-title : inline-text -> config -> config
+  val set-figure-title-fun : (int -> inline-text) -> config -> config
+  val set-table-title-fun : (int -> inline-text) -> config -> config
   val set-bib-title : inline-text -> config -> config
 
   direct +abstract : [inline-text?; block-text] block-cmd
@@ -136,8 +136,8 @@ end = struct
     footnote-mark : inline-text;
     font-info     : font-info;
     toc-title     : inline-text;
-    figure-title  : inline-text;
-    table-title   : inline-text;
+    figure-title-fun : int -> inline-text;
+    table-title-fun  : int -> inline-text;
     bib-title     : inline-text;
   |)
 
@@ -173,8 +173,8 @@ end = struct
     footnote-mark = {†};
     font-info     = default-font;
     toc-title     = {目次};
-    figure-title  = {図};
-    table-title   = {表};
+    figure-title-fun = fun i -> (let i-it = i |> arabic |> embed-string in {図#i-it;：});
+    table-title-fun  = fun i -> (let i-it = i |> arabic |> embed-string in {表#i-it;：});
     bib-title     = {参考文献};
   |)
 
@@ -318,15 +318,15 @@ end = struct
     let () = toc-title-ref <- title in
     (| config with toc-title = title; |)
 
-  let-mutable figure-title-ref <- default-config#figure-title
-  let set-figure-title title config =
-    let () = figure-title-ref <- title in
-    (| config with figure-title = title; |)
+  let-mutable figure-title-fun-ref <- default-config#figure-title-fun
+  let set-figure-title-fun title config =
+    let () = figure-title-fun-ref <- title in
+    (| config with figure-title-fun = title; |)
 
-  let-mutable table-title-ref <- default-config#table-title
-  let set-table-title title config =
-    let () = table-title-ref <- title in
-    (| config with table-title = title; |)
+  let-mutable table-title-fun-ref <- default-config#table-title-fun
+  let set-table-title-fun title config =
+    let () = table-title-fun-ref <- title in
+    (| config with table-title-fun = title; |)
 
   let-mutable bib-title-ref <- default-config#bib-title
   let set-bib-title title config =
@@ -1247,11 +1247,19 @@ end = struct
     let ib-hook = register-cross-reference-page label in
     let fig-num-it = embed-string num in
     let caption-ib =
-      let t = !figure-title-ref in
-      inline-fil ++ read-inline ctx {#t;#fig-num-it;：#caption;} ++ ib-hook ++ inline-fil
+      let f = !figure-title-fun-ref in
+      let title = f !figure-count in
+      read-inline ctx {#title;#caption;} ++ ib-hook
       |> register-doc-hyper-link label
     in
-    let bb = read-block ctx inner +++ (line-break false true ctx caption-ib) in
+    let line-width = get-text-width ctx in
+    let ib =
+      if line-width >' get-natural-width caption-ib then
+        inline-fil ++ caption-ib ++ inline-fil
+      else
+        caption-ib ++ inline-fil
+    in
+    let bb = read-block ctx inner +++ (line-break false true ctx ib) in
     match position-opt with
     | Some(Top) -> (
       hook-page-break-block (fun pbinfo _ -> (
@@ -1279,11 +1287,19 @@ end = struct
     let ib-hook = register-cross-reference-page label in
     let fig-num-it = embed-string num in
     let caption-ib =
-      let t = !table-title-ref in
-      inline-fil ++ read-inline ctx {#t;#fig-num-it;：#caption;} ++ ib-hook ++ inline-fil
+      let f = !table-title-fun-ref in
+      let title = f !table-count in
+      read-inline ctx {#title;#caption;} ++ ib-hook
       |> register-doc-hyper-link label
     in
-    let bb = (line-break false true ctx caption-ib) +++ read-block ctx inner in
+    let line-width = get-text-width ctx in
+    let ib =
+      if line-width >' get-natural-width caption-ib then
+        inline-fil ++ caption-ib ++ inline-fil
+      else
+        caption-ib ++ inline-fil
+    in
+    let bb = (line-break false true ctx ib) +++ read-block ctx inner in
     match position-opt with
     | Some(Top) -> (
       hook-page-break-block (fun pbinfo _ -> (
