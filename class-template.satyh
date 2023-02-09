@@ -52,9 +52,12 @@ module ClassTemplate : sig
   val set-headline-font-cjk   : (string * float * float) -> config -> config
   val set-headline-font-latin : (string * float * float) -> config -> config
   val set-toc-title : inline-text -> config -> config
-  val set-figure-title-fun : (int -> inline-text) -> config -> config
-  val set-table-title-fun : (int -> inline-text) -> config -> config
   val set-bib-title : inline-text -> config -> config
+  val set-figure-title-fun : (int -> inline-text) -> config -> config
+  val set-table-title-fun  : (int -> inline-text) -> config -> config
+  val set-section-num-fun : (int list -> string) -> config -> config
+  val set-section-title-deco : (context -> int -> inline-boxes -> inline-boxes -> block-boxes) -> config -> config
+
 
   direct +abstract : [inline-text?; block-text] block-cmd
 
@@ -104,6 +107,27 @@ end = struct
   |)
 
 
+
+  let-rec default-sec-num-f sec-num-lst =
+    match sec-num-lst with
+    | [] -> ` `
+    | [n] -> arabic n
+    | x::xs -> (arabic x) ^ `.` ^ (default-sec-num-f xs)
+
+
+  let default-section-title-deco ctx depth num-ib title-ib =
+    let num-width = get-natural-width num-ib in
+    let space = get-font-size ctx *' 0.5 in
+    let p = (num-width +' space, 0pt, 0pt, 0pt) in
+    block-frame-breakable ctx p VDecoSet.empty (fun ctx -> (
+      let ib =
+        inline-skip ((num-width +' space) *' -1.0) ++ num-ib ++ inline-skip space ++ title-ib
+      in
+      line-break true false ctx ib
+    ))
+
+
+
   % 設定の中身は単なるレコードだが、隠蔽することによって後方互換性を保てるようにする
   type config = (|
     title         : inline-text list;
@@ -136,9 +160,11 @@ end = struct
     footnote-mark : inline-text;
     font-info     : font-info;
     toc-title     : inline-text;
+    bib-title     : inline-text;
     figure-title-fun : int -> inline-text;
     table-title-fun  : int -> inline-text;
-    bib-title     : inline-text;
+    section-num-fun : int list -> string;
+    section-title-deco : context -> int -> inline-boxes -> inline-boxes -> block-boxes;
   |)
 
 
@@ -173,10 +199,15 @@ end = struct
     footnote-mark = {†};
     font-info     = default-font;
     toc-title     = {目次};
+    bib-title     = {参考文献};
     figure-title-fun = fun i -> (let i-it = i |> arabic |> embed-string in {図#i-it;：});
     table-title-fun  = fun i -> (let i-it = i |> arabic |> embed-string in {表#i-it;：});
-    bib-title     = {参考文献};
+    section-num-fun = default-sec-num-f;
+    section-title-deco = default-section-title-deco;
   |)
+
+
+  let-mutable config-ref <- default-config
 
 
   % configの中身を書き換えていく関数
@@ -220,34 +251,22 @@ end = struct
   let set-show-footer show-footer config =
     (| config with show-footer = show-footer; |)
 
-  let-mutable is-title-page-ref <- default-config#title-page
   let set-title-page title-page config =
-    let () = is-title-page-ref <- title-page in
     (| config with title-page = title-page; |)
 
-  let-mutable is-bib-page-ref <- default-config#bib-page
   let set-bib-page bib-page config =
-    let () = is-bib-page-ref <- bib-page in
     (| config with bib-page = bib-page; |)
 
-  let-mutable normal-font-size-ref <- default-config#normal-font-size
   let set-normal-font-size normal-font-size config =
-    let () = normal-font-size-ref <- normal-font-size in
     (| config with normal-font-size = normal-font-size; |)
 
-  let-mutable leading-ratio-ref <- default-config#leading-ratio
   let set-leading-ratio leading-ratio config =
-    let () = leading-ratio-ref <- leading-ratio in
     (| config with leading-ratio = leading-ratio; |)
 
-  let-mutable paragraph-margin-top-ratio-ref <- default-config#paragraph-margin-top-ratio
   let set-paragraph-margin-top-ratio paragraph-margin-top-ratio config =
-    let () = paragraph-margin-top-ratio-ref <- paragraph-margin-top-ratio in
     (| config with paragraph-margin-top-ratio = paragraph-margin-top-ratio; |)
 
-  let-mutable paragraph-margin-bottom-ratio-ref <- default-config#paragraph-margin-bottom-ratio
   let set-paragraph-margin-bottom-ratio paragraph-margin-bottom-ratio config =
-    let () = paragraph-margin-bottom-ratio-ref <- paragraph-margin-bottom-ratio in
     (| config with paragraph-margin-bottom-ratio = paragraph-margin-bottom-ratio; |)
 
   let set-height-page height-page config =
@@ -277,68 +296,55 @@ end = struct
   let set-abstract abstract config =
     (| config with abstract = Some(abstract); |)
 
-  let-mutable thanks-marks-ref <- default-config#thanks-marks
   let set-thanks-marks marks config =
-      let () = thanks-marks-ref <- marks in
       (| config with thanks-marks = marks;|)
 
-  let-mutable footnote-mark-ref <- default-config#footnote-mark
   let set-footnote-mark mark config =
-      let () = footnote-mark-ref <- mark in
       (| config with footnote-mark = mark;|)
 
-  let-mutable font-info-ref <- default-font
   let set-text-font-cjk font config =
     let font-info = config#font-info in
     let new = (| font-info with text-cjk = font; |) in
-    let () = font-info-ref <- new in
     (| config with font-info = new; |)
 
   let set-text-font-latin font config =
     let font-info = config#font-info in
     let new = (| font-info with text-latin = font; |) in
-    let () = font-info-ref <- new in
     (| config with font-info = new; |)
 
   let set-headline-font-cjk font config =
     let font-info = config#font-info in
     let new = (| font-info with headline-cjk = font; |) in
-    let () = font-info-ref <- new in
     (| config with font-info = new; |)
 
   let set-headline-font-latin font config =
     let font-info = config#font-info in
     let new = (| font-info with headline-latin = font; |) in
-    let () = font-info-ref <- new in
     (| config with font-info = new; |)
 
-
-  let-mutable toc-title-ref <- default-config#toc-title
   let set-toc-title title config =
-    let () = toc-title-ref <- title in
     (| config with toc-title = title; |)
 
-  let-mutable figure-title-fun-ref <- default-config#figure-title-fun
   let set-figure-title-fun title config =
-    let () = figure-title-fun-ref <- title in
     (| config with figure-title-fun = title; |)
 
-  let-mutable table-title-fun-ref <- default-config#table-title-fun
   let set-table-title-fun title config =
-    let () = table-title-fun-ref <- title in
     (| config with table-title-fun = title; |)
 
-  let-mutable bib-title-ref <- default-config#bib-title
   let set-bib-title title config =
-    let () = bib-title-ref <- title in
     (| config with bib-title = title; |)
 
+  let set-section-num-fun f config =
+    (| config with section-num-fun = f; |)
+
+  let set-section-title-deco f config =
+    (| config with section-title-deco = f; |)
 
 
 
   % フォント変更用関数
   let set-text-font ctx =
-    let info = !font-info-ref in
+    let info = (!config-ref)#font-info in
     ctx |> set-font HanIdeographic info#text-cjk
         |> set-font Kana           info#text-cjk
         |> set-font Latin          info#text-latin
@@ -346,7 +352,7 @@ end = struct
 
 
   let set-headline-font ctx =
-    let info = !font-info-ref in
+    let info = (!config-ref)#font-info in
     ctx |> set-font HanIdeographic info#headline-cjk
         |> set-font Kana           info#headline-cjk
         |> set-font Latin          info#headline-latin
@@ -354,13 +360,13 @@ end = struct
 
 
   % フォントサイズ
-  let font-size-normal () = !normal-font-size-ref
-  let font-size-title () = !normal-font-size-ref *' 1.6
-  let font-size-author () = !normal-font-size-ref *' 1.3
-  let font-size-date () = !normal-font-size-ref *' 1.3
-  let font-size-section () = !normal-font-size-ref *' 1.6
-  let font-size-subsection () = !normal-font-size-ref *' 1.3
-  let font-size-subsubsection () = !normal-font-size-ref *' 1.15
+  let font-size-normal ()        = (!config-ref)#normal-font-size
+  let font-size-title ()         = (!config-ref)#normal-font-size *' 1.6
+  let font-size-author ()        = (!config-ref)#normal-font-size *' 1.3
+  let font-size-date ()          = (!config-ref)#normal-font-size *' 1.3
+  let font-size-section ()       = (!config-ref)#normal-font-size *' 1.6
+  let font-size-subsection ()    = (!config-ref)#normal-font-size *' 1.3
+  let font-size-subsubsection () = (!config-ref)#normal-font-size *' 1.15
 
 
   let make-ctx width =
@@ -379,10 +385,10 @@ end = struct
       |> set-manual-rising 0pt % 文字の上下の補正値
       |> set-text-color Color.black
       |> set-paragraph-margin
-          (fs *' !paragraph-margin-top-ratio-ref)
-          (fs *' !paragraph-margin-bottom-ratio-ref)
-      |> set-leading (fs *' !leading-ratio-ref)
-      |> set-min-gap-of-lines (fs *' !leading-ratio-ref)
+          (fs *' (!config-ref)#paragraph-margin-top-ratio)
+          (fs *' (!config-ref)#paragraph-margin-bottom-ratio)
+      |> set-leading (fs *' (!config-ref)#leading-ratio)
+      |> set-min-gap-of-lines (fs *' (!config-ref)#leading-ratio)
       %|> set-min-paragraph-ascender-and-descender 0pt 0pt
 
 
@@ -609,6 +615,7 @@ end = struct
 
   let document c main =
     % 参照の中身を確定させるために、configの方を先に評価しないといけない
+    let () = config-ref <- c in
     let all-text-width = c#width-page -' c#left-margin -' c#right-margin in
     let () = all-text-width-ref <- all-text-width in
     let text-width =
@@ -650,7 +657,7 @@ end = struct
             let ctx =
               ctx |> set-font-size fs
                   |> set-headline-font
-                  |> set-paragraph-margin (fs *' !leading-ratio-ref) (fs *' !leading-ratio-ref)
+                  |> set-paragraph-margin (fs *' (!config-ref)#leading-ratio) (fs *' (!config-ref)#leading-ratio)
             in
             let f it =
               line-break false false ctx (
@@ -668,7 +675,7 @@ end = struct
             let ctx =
               ctx |> set-font-size fs
                   |> set-headline-font
-                  |> set-paragraph-margin (fs *' !leading-ratio-ref) (fs *' !leading-ratio-ref)
+                  |> set-paragraph-margin (fs *' (!config-ref)#leading-ratio) (fs *' (!config-ref)#leading-ratio)
             in
             line-break false false ctx (
               inline-fil ++ read-inline ctx it ++ inline-fil
@@ -687,8 +694,8 @@ end = struct
               ctx |> set-font-size fs
                   |> set-headline-font
                   |> set-paragraph-margin
-                      (fs *' !paragraph-margin-top-ratio-ref)
-                      (fs *' !paragraph-margin-bottom-ratio-ref)
+                      (fs *'  (!config-ref)#paragraph-margin-top-ratio)
+                      (fs *'  (!config-ref)#paragraph-margin-bottom-ratio)
             in
             line-break false false ctx (
               inline-fil ++ read-inline ctx date ++ inline-fil
@@ -873,7 +880,7 @@ end = struct
             ctx |> set-font-size (font-size-section ())
                 |> set-headline-font
           in
-          ((read-inline ctx !toc-title-ref) ++ inline-fil)
+          ((read-inline ctx (!config-ref)#toc-title) ++ inline-fil)
           |> line-break true false ctx
         in
         if c#title-page then
@@ -1034,17 +1041,7 @@ end = struct
       if is-omit-num then
         ` `
       else
-        % ここを弄れば節番号の表示を弄れる
-        % 例えば階層が一番上なら
-        % (arabic n ^ `章`)にする、とか
-        match List.reverse sec-num-lst with
-        | [] -> ` `
-        | [n] -> arabic n
-        | _ -> (
-          sec-num-lst
-          |> List.map arabic
-          |> List.fold-right (fun s1 s2 -> s1^ `.` ^ s2) ` `
-        )
+        (!config-ref)#section-num-fun ( List.reverse sec-num-lst)
     in
     let is-open = (List.length sec-num-lst) <= 3 in
     let () =
@@ -1100,7 +1097,7 @@ end = struct
     let mark =
       match manual-mark with
       | Some(mark) -> mark
-      | None -> !footnote-mark-ref
+      | None -> (!config-ref)#footnote-mark
     in
     let num-it =
       match manual-mark with
@@ -1176,13 +1173,13 @@ end = struct
       match manual-mark with
       | Some(m) -> m
       | None -> (
-        if List.length !thanks-marks-ref == 0 then
+        if List.length (!config-ref)#thanks-marks == 0 then
           {}
         else
           let n =
-            !thanks-count mod (List.length !thanks-marks-ref)
+            !thanks-count mod (List.length (!config-ref)#thanks-marks)
           in
-          match List.nth (n - 1) !thanks-marks-ref with
+          match List.nth (n - 1) (!config-ref)#thanks-marks with
           | None -> {}
           | Some(s) -> embed-string s
       )
@@ -1198,7 +1195,7 @@ end = struct
     in
     % ページ下部に出現するブロック
     let bbk () =
-      let font-size = !normal-font-size-ref in
+      let font-size = font-size-normal () in
       let ctx =
         ctx |> set-font-size (font-size *' 0.85)
             |> set-leading font-size
@@ -1218,7 +1215,7 @@ end = struct
         ))
     in
     let () =
-      if not !is-title-page-ref then
+      if not (!config-ref)#title-page then
         is-first-footnote <- false
       else
         ()
@@ -1247,7 +1244,7 @@ end = struct
     let ib-hook = register-cross-reference-page label in
     let fig-num-it = embed-string num in
     let caption-ib =
-      let f = !figure-title-fun-ref in
+      let f = (!config-ref)#figure-title-fun in
       let title = f !figure-count in
       read-inline ctx {#title;#caption;} ++ ib-hook
       |> register-doc-hyper-link label
@@ -1287,7 +1284,7 @@ end = struct
     let ib-hook = register-cross-reference-page label in
     let fig-num-it = embed-string num in
     let caption-ib =
-      let f = !table-title-fun-ref in
+      let f = (!config-ref)#table-title-fun in
       let title = f !table-count in
       read-inline ctx {#title;#caption;} ++ ib-hook
       |> register-doc-hyper-link label
@@ -1356,7 +1353,7 @@ end = struct
       |> List.map (fun (k, v) -> bib-scheme ctx k v)
       |> List.fold-left (+++) block-nil
     in
-    let header-text = !bib-title-ref in
+    let header-text = (!config-ref)#bib-title in
     let header-ctx =
       ctx |> set-font-size (font-size-section ())
           |> set-headline-font
@@ -1364,7 +1361,7 @@ end = struct
     in
     let header-ib = read-inline header-ctx header-text ++ inline-fil in
     let header = line-break true false header-ctx header-ib in
-    if !is-bib-page-ref then
+    if (!config-ref)#bib-page then
       clear-page +++ header +++ main
     else
       header +++ main
