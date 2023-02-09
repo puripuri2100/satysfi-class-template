@@ -1,6 +1,7 @@
 @import: class-template
 @import: ipsj
 @require: pervasives
+@require: itemize
 
 open IPSJ
 
@@ -16,7 +17,16 @@ document (
   |}
 ) '<
   +section {はじめに} <
-    +p{情報処理学会全国大会用の\SATySFi;テンプレートは今まで存在していなかった。}
+    +p{情報処理学会全国大会用の\SATySFi;テンプレートは今まで存在していなかった。そこで、使いやすい\SATySFi;で原稿を書くために、\SATySFi;用のテンプレートを作成することにした。}
+    +p{情報処理学会全国大会用の様式は\listing {
+      * A4版
+      * 上マージン30mm
+      * 下マージン25mm
+      * 左右マージン20mm
+      * 2段組
+      * 断間7mm
+      * ページ番号無し
+    }であるため、これを満たす必要がある。}
   >
   +section {提案手法} <
     +p{筆者が作成したsatysfi-class-templateというカスタマイズ可能なクラスファイル\cite[`class-template`];を使用し、これらの設定項目の値を情報処理学会全国大会の様式に合うように設定した。}

@@ -61,6 +61,8 @@ end = struct
     |> ClassTemplate.set-multicolumn 2
     |> ClassTemplate.set-width-page 210mm
     |> ClassTemplate.set-height-page 297mm
+    |> ClassTemplate.set-show-footer false
+    |> ClassTemplate.set-show-header false
 
   let default-config =
     ClassTemplate.default-config
