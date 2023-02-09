@@ -68,29 +68,29 @@ module ClassTemplate : sig
   val set-appendix-toc-num-fun : (int list -> string option) -> config -> config
 
 
-  direct +abstract : [inline-text?; block-text] block-cmd
+  val +abstract : [inline-text?; block-text] block-cmd
 
-  direct +appendix : [] block-cmd
+  val +appendix : [] block-cmd
 
-  direct +section : [string?; bool?; string?; inline-text; block-text] block-cmd
-  direct +p : [inline-text] block-cmd
+  val +section : [string?; bool?; string?; inline-text; block-text] block-cmd
+  val +p : [inline-text] block-cmd
 
-  direct \footnote : [inline-text?; inline-text] inline-cmd
+  val \footnote : [inline-text?; inline-text] inline-cmd
 
-  direct \thanks : [inline-text?; inline-text] inline-cmd
+  val \thanks : [inline-text?; inline-text] inline-cmd
 
-  direct +figure : [string?; position?; inline-text; block-text] block-cmd
-  direct +table : [string?; position?; inline-text; block-text] block-cmd
+  val +figure : [string?; position?; inline-text; block-text] block-cmd
+  val +table : [string?; position?; inline-text; block-text] block-cmd
 
-  direct \url : [string] inline-cmd
+  val \url : [string] inline-cmd
 
-  direct \ref : [string] inline-cmd
-  direct \ref-page : [string] inline-cmd
+  val \ref : [string] inline-cmd
+  val \ref-page : [string] inline-cmd
 
   type bibitem
   val bibitem : string -> inline-text -> bibitem
-  direct +thebibliography : [bibitem list] block-cmd
-  direct \cite : [string list] inline-cmd
+  val +thebibliography : [bibitem list] block-cmd
+  val \cite : [string list] inline-cmd
 
 end = struct
 
