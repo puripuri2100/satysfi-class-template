@@ -1,15 +1,19 @@
 @import: class-template
 @import: ipsj
+@require: pervasives
+
+open IPSJ
+
+in
 
 
-ClassTemplate.document (
-  ClassTemplate.default-config
-  |> IPSJ.set-config
-  |> IPSJ.set-title {|日本語のタイトル|長くても改行可能|}{English Title}
-  |> ClassTemplate.set-author {
-    \author{\@puripuri2100}{筑波大学}{\@puripuri2100, University of Tsukuba}
-    \author{\@puripuri21002}{筑波大学}{\@puripuri21002, University of Tsukuba}
-  }
+document (
+  default-config
+  |> set-title {|日本語のタイトル|長くても改行可能|}{English Title}
+  |> set-author-multiline {|
+    \author{\@puripuri2100 1}{筑波大学}{\@puripuri2100, University of Tsukuba}
+    \author{\@puripuri2100 2}{筑波大学}{\@puripuri2100, University of Tsukuba}
+  |}
 ) '<
   +section {はじめに} <
     +p{情報処理学会全国大会用の\SATySFi;テンプレートは今まで存在していなかった。}
@@ -21,7 +25,7 @@ ClassTemplate.document (
     +p{情報処理学会全国大会用の\SATySFi;テンプレートを作成し、GitHubで公開した\cite[`ipsj-template`];。}
   >
   +thebibliography [
-    ClassTemplate.bibitem `class-template` {puripuri2100. "Template of SATySFi class file". \url(`https://github.com/puripuri2100/satysfi-class-template`);, accessed 2023-02-03.};
-    ClassTemplate.bibitem `ipsj-template` {puripuri2100. \url(`https://github.com/puripuri2100/satysfi-class-template/blob/master/ipsj.satyh`);, accessed 2023-02-03.};
+    bibitem `class-template` {puripuri2100. "Template of SATySFi class file". \url(`https://github.com/puripuri2100/satysfi-class-template`);, accessed 2023-02-03.};
+    bibitem `ipsj-template` {puripuri2100. \url(`https://github.com/puripuri2100/satysfi-class-template/blob/master/ipsj.satyh`);, accessed 2023-02-03.};
   ];
 >

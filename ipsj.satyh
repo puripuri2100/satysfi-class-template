@@ -1,10 +1,51 @@
 @import: class-template
+@require: list
 
 module IPSJ : sig
-  val set-config : ClassTemplate.config -> ClassTemplate.config
-  val set-title : inline-text list -> inline-text -> ClassTemplate.config -> ClassTemplate.config
+
+  type position
+  val top : position
+  val here : position
+
+
+  type config
+
+  val document : config -> block-text -> document
+
+  val default-config : config
+
+  val set-title : inline-text list -> inline-text -> config -> config
+  val set-author-multiline : inline-text list -> config -> config
+
   direct \author : [inline-text; inline-text; inline-text] inline-cmd
+
+  direct +section : [string?; bool?; inline-text; block-text] block-cmd
+  direct +p : [inline-text] block-cmd
+
+  direct \footnote : [inline-text] inline-cmd
+
+  direct +figure : [string?; position?; inline-text; block-text] block-cmd
+  direct +table : [string?; position?; inline-text; block-text] block-cmd
+
+  direct \url : [string] inline-cmd
+
+  direct \ref : [string] inline-cmd
+  direct \ref-page : [string] inline-cmd
+
+  type bibitem
+  val bibitem : string -> inline-text -> bibitem
+  direct +thebibliography : [bibitem list] block-cmd
+  direct \cite : [string list] inline-cmd
+
 end = struct
+
+  type position = ClassTemplate.position
+  let top = ClassTemplate.top
+  let here = ClassTemplate.here
+
+  type config = ClassTemplate.config
+
+  let document = ClassTemplate.document
 
   let font-size = 12pt
   let columnsep = 7mm
@@ -21,11 +62,19 @@ end = struct
     |> ClassTemplate.set-width-page 210mm
     |> ClassTemplate.set-height-page 297mm
 
+  let default-config =
+    ClassTemplate.default-config
+    |> set-config
+
+
   let set-title titleJp-lst titleEn config =
-    match titleJp-lst with
-    | [] -> ClassTemplate.set-title {\footnote?:({})(titleEn);} config
-    | x::xs ->
-      ClassTemplate.set-title-multiline ({#x;\footnote?:({})(titleEn);}::xs) config
+    let-rec sub lst =
+      match lst with
+      | [] -> [{\ClassTemplate.footnote?:({})(titleEn);}]
+      | [x] -> [{#x;\ClassTemplate.footnote?:({})(titleEn);}]
+      | x::xs -> x :: sub xs
+    in
+    ClassTemplate.set-title-multiline (sub titleJp-lst) config
 
 
   let-inline ctx \thanks-mark n =
@@ -41,7 +90,7 @@ end = struct
   let-mutable author-count <- 0
   let-inline ctx \author affiliate name en =
     let () = author-count <- !author-count + 1 in
-    let thanks = read-inline ctx {\thanks?:({\thanks-mark(!author-count);}){#en;}} in
+    let thanks = read-inline ctx {\ClassTemplate.thanks?:({\thanks-mark(!author-count);}){#en;}} in
     let mark = read-inline ctx {\thanks-mark(!author-count);} in
     let font-size = get-font-size ctx in
     let affiliate = read-inline ctx affiliate ++ thanks in
@@ -61,5 +110,49 @@ end = struct
       +++
       line-break false true ctx (inline-skip n-space ++ name ++ inline-skip n-space)
     ))
+
+  let set-author-multiline = ClassTemplate.set-author-multiline
+
+
+
+  % class-templateから必要なコマンドをラップして再公開
+
+
+  let-block ctx +section ?:label-opt ?:is-omit-opt title inner =
+    match (label-opt, is-omit-opt) with
+    | (Some(label), Some(is-omit)) -> read-block ctx '<+ClassTemplate.section ?:(label) ?:(is-omit) (title) (inner);>
+    | (Some(label), None)          -> read-block ctx '<+ClassTemplate.section ?:(label) (title) (inner);>
+    | (None, Some(is-omit))        -> read-block ctx '<+ClassTemplate.section ?* ?:(is-omit) (title) (inner);>
+    | (None, None)                 -> read-block ctx '<+ClassTemplate.section (title) (inner);>
+
+  let-block +p it = '<+ClassTemplate.p(it);>
+
+
+
+  let-inline \footnote inner = {\ClassTemplate.footnote (inner);}
+
+  let-block ctx +figure ?:label-opt ?:pos-opt caption inner =
+    match (label-opt, pos-opt) with
+    | (Some(label), Some(pos)) -> read-block ctx '<+ClassTemplate.figure ?:(label) ?:(pos) (caption) (inner);>
+    | (Some(label), None)      -> read-block ctx '<+ClassTemplate.figure ?:(label) (caption) (inner);>
+    | (None, Some(pos))        -> read-block ctx '<+ClassTemplate.figure ?* ?:(pos) (caption) (inner);>
+    | (None, None)             -> read-block ctx '<+ClassTemplate.figure (caption) (inner);>
+
+  let-block ctx +table ?:label-opt ?:pos-opt caption inner =
+    match (label-opt, pos-opt) with
+    | (Some(label), Some(pos)) -> read-block ctx '<+ClassTemplate.table ?:(label) ?:(pos) (caption) (inner);>
+    | (Some(label), None)      -> read-block ctx '<+ClassTemplate.table ?:(label) (caption) (inner);>
+    | (None, Some(pos))        -> read-block ctx '<+ClassTemplate.table ?* ?:(pos) (caption) (inner);>
+    | (None, None)             -> read-block ctx '<+ClassTemplate.table (caption) (inner);>
+
+  let-inline \url url = {\ClassTemplate.url (url);}
+
+  let-inline \ref      label = {\ClassTemplate.ref      (label);}
+  let-inline \ref-page label = {\ClassTemplate.ref-page (label);}
+
+  type bibitem = ClassTemplate.bibitem
+  let bibitem = ClassTemplate.bibitem
+  let-block ctx +thebibliography lst = read-block ctx '<+ClassTemplate.thebibliography (lst);>
+  let-inline \cite lst = {\ClassTemplate.cite (lst);}
 
 end
