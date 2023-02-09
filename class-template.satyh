@@ -56,6 +56,7 @@ module ClassTemplate : sig
   val set-figure-title-fun : (int -> inline-text) -> config -> config
   val set-table-title-fun  : (int -> inline-text) -> config -> config
   val set-section-num-fun : (int list -> string) -> config -> config
+  val set-section-font-size-ratio : (int -> float) -> config -> config
   val set-section-title-deco : (context -> int -> inline-boxes -> inline-boxes -> block-boxes) -> config -> config
 
 
@@ -121,7 +122,7 @@ end = struct
     let p = (num-width +' space, 0pt, 0pt, 0pt) in
     block-frame-breakable ctx p VDecoSet.empty (fun ctx -> (
       let ib =
-        inline-skip ((num-width +' space) *' -1.0) ++ num-ib ++ inline-skip space ++ title-ib
+        inline-skip ((num-width +' space) *' -1.0) ++ num-ib ++ inline-skip space ++ title-ib ++ inline-fil
       in
       line-break true false ctx ib
     ))
@@ -164,6 +165,7 @@ end = struct
     figure-title-fun : int -> inline-text;
     table-title-fun  : int -> inline-text;
     section-num-fun : int list -> string;
+    section-font-size-ratio : int -> float;
     section-title-deco : context -> int -> inline-boxes -> inline-boxes -> block-boxes;
   |)
 
@@ -203,6 +205,12 @@ end = struct
     figure-title-fun = fun i -> (let i-it = i |> arabic |> embed-string in {図#i-it;：});
     table-title-fun  = fun i -> (let i-it = i |> arabic |> embed-string in {表#i-it;：});
     section-num-fun = default-sec-num-f;
+    section-font-size-ratio = fun i -> (
+      match i with
+      | 1 -> 1.6
+      | 2 -> 1.3
+      | _ -> 1.15
+    );
     section-title-deco = default-section-title-deco;
   |)
 
@@ -337,6 +345,9 @@ end = struct
   let set-section-num-fun f config =
     (| config with section-num-fun = f; |)
 
+  let set-section-font-size-ratio ratio config =
+    (| config with section-font-size-ratio = ratio; |)
+
   let set-section-title-deco f config =
     (| config with section-title-deco = f; |)
 
@@ -364,9 +375,6 @@ end = struct
   let font-size-title ()         = (!config-ref)#normal-font-size *' 1.6
   let font-size-author ()        = (!config-ref)#normal-font-size *' 1.3
   let font-size-date ()          = (!config-ref)#normal-font-size *' 1.3
-  let font-size-section ()       = (!config-ref)#normal-font-size *' 1.6
-  let font-size-subsection ()    = (!config-ref)#normal-font-size *' 1.3
-  let font-size-subsubsection () = (!config-ref)#normal-font-size *' 1.15
 
 
   let make-ctx width =
@@ -812,6 +820,8 @@ end = struct
     in
 
     let bb-toc =
+      let font-size-section = (font-size-normal ()) *' (c#section-font-size-ratio 1) in
+      let font-size-subsection = (font-size-normal ()) *' (c#section-font-size-ratio 2) in
       if c#show-toc then
         % ここを弄ると目次の表示を変化させられる
         let f (sec-num-lst, label, num, title-it) =
@@ -823,9 +833,9 @@ end = struct
           let main-ib =
             match List.length sec-num-lst with
             | 1 -> (
-              let indent = font-size-section () in
+              let indent = font-size-section in
               let ctx =
-                ctx |> set-font-size (font-size-subsection ())
+                ctx |> set-font-size font-size-subsection
                     |> set-headline-font
               in
               let num-ib =
@@ -841,7 +851,7 @@ end = struct
             )
             | n -> (
               let indent =
-                font-size-section () +' font-size-normal () *' (float (n - 1))
+                font-size-section +' font-size-normal () *' (float (n - 1))
               in
               let ctx =
                 ctx |> set-font-size (font-size-normal ())
@@ -877,7 +887,7 @@ end = struct
         in
         let toc-title =
           let ctx =
-            ctx |> set-font-size (font-size-section ())
+            ctx |> set-font-size font-size-section
                 |> set-headline-font
           in
           ((read-inline ctx (!config-ref)#toc-title) ++ inline-fil)
@@ -1009,10 +1019,10 @@ end = struct
   let section-title-format ctx sec-num-lst label-opt is-omit-num outline-title-opt title =
     let title-ctx =
       let font-size =
-        match List.length sec-num-lst with
-        | 1 -> font-size-section ()
-        | 2 -> font-size-subsection ()
-        | _ -> font-size-subsubsection ()
+        sec-num-lst
+        |> List.length
+        |> (!config-ref)#section-font-size-ratio
+        |> (*') (font-size-normal ())
       in
       ctx |> set-headline-font
           |> set-font-size font-size
@@ -1025,23 +1035,17 @@ end = struct
       | Some(s) -> s
       | None -> extract-string title-ib
     in
+    let num = (!config-ref)#section-num-fun ( List.reverse sec-num-lst) in
     let label =
       match label-opt with
       | Some(s) -> s
-      | None -> (
-        `sec:` ^ (
-          sec-num-lst
-          |> List.reverse
-          |> List.map arabic
-          |> List.fold-right (fun s1 s2 -> s1^ `.` ^ s2) ` `
-        )
-      )
+      | None -> `sec:` ^ num
     in
     let num =
       if is-omit-num then
         ` `
       else
-        (!config-ref)#section-num-fun ( List.reverse sec-num-lst)
+        num
     in
     let is-open = (List.length sec-num-lst) <= 3 in
     let () =
@@ -1055,10 +1059,7 @@ end = struct
       |> read-inline title-ctx
     in
     let ib-hook = register-cross-reference-page label in
-    let main =
-      num-ib ++ ib-hook ++ inline-skip (font-size-normal ()) ++ title-ib
-    in
-    register-doc-hyper-link label main
+    (register-doc-hyper-link label (num-ib ++ ib-hook), title-ib)
 
   let-block ctx +section ?:label-opt ?:is-omit-num-opt ?:outline-title-opt title inner =
     let () = sec-num <- !sec-num + 1 in
@@ -1070,13 +1071,15 @@ end = struct
       | Some(b) -> b
       | None -> false
     in
-    let title-ib =
+    let (num-ib, title-ib) =
       section-title-format ctx (List.reverse !sec-num-lst) label-opt is-omit-num outline-title-opt title
     in
     let title-ctx =
       ctx |> set-paragraph-margin (font-size-normal () *' 2.0) (font-size-normal () *' 1.5)
     in
-    let title-bb = line-break true false title-ctx (title-ib ++ inline-fil) in
+    let title-bb =
+      (!config-ref)#section-title-deco title-ctx (List.length !sec-num-lst) num-ib title-ib
+    in
     let () = sec-num <- 0 in
     let bb = read-block ctx inner in
     let () = sec-num-lst <- old-sec-num-lst in
@@ -1354,10 +1357,11 @@ end = struct
       |> List.fold-left (+++) block-nil
     in
     let header-text = (!config-ref)#bib-title in
+    let font-size-section = (font-size-normal ()) *' ((!config-ref)#section-font-size-ratio 1) in
     let header-ctx =
-      ctx |> set-font-size (font-size-section ())
+      ctx |> set-font-size font-size-section
           |> set-headline-font
-          |> set-paragraph-margin (font-size-section ()) (font-size-normal ())
+          |> set-paragraph-margin font-size-section (font-size-normal ())
     in
     let header-ib = read-inline header-ctx header-text ++ inline-fil in
     let header = line-break true false header-ctx header-ib in
