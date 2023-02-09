@@ -68,6 +68,27 @@ document (
     >
   >
 
+  +appendix;
+
+
+  +section {testA} <
+    +section {testA.1} <
+      +section {testA.1.1} <>
+      +section {testA.1.2} <>
+    >
+    +section {testA.2} <
+      +section {testA.2.1} <>
+      +section {testA.2.2} <>
+    >
+  >
+  +section {testB} <>
+
+
+  +section {testC} <
+    +section {testC.1} <>
+    +section {testC.2} <>
+  >
+
   +thebibliography [
     bibitem `item1` {puripuri2100. "Template of SATySFi class file". \url(`https://github.com/puripuri2100/satysfi-class-template`);, accessed 2023-02-03.};
     bibitem `item2` {hoge, fuga.};

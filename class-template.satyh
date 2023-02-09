@@ -62,9 +62,15 @@ module ClassTemplate : sig
   val set-toc-headline-font-depth : int -> config -> config
   val set-toc-font-size-ratio : (int -> float) -> config -> config
   val set-toc-deco : (context -> string -> int -> string option -> inline-text -> block-boxes) -> config -> config
+  val set-appendix-num-fun : (int list -> string) -> config -> config
+  val set-appendix-font-size-ratio : (int -> float) -> config -> config
+  val set-appendix-title-deco : (context -> int -> inline-boxes -> inline-boxes -> block-boxes) -> config -> config
+  val set-appendix-toc-num-fun : (int list -> string option) -> config -> config
 
 
   direct +abstract : [inline-text?; block-text] block-cmd
+
+  direct +appendix : [] block-cmd
 
   direct +section : [string?; bool?; string?; inline-text; block-text] block-cmd
   direct +p : [inline-text] block-cmd
@@ -311,6 +317,24 @@ end = struct
     | x::xs -> (arabic x) ^ `.` ^ (default-sec-num-f xs)
 
 
+  let default-appendix-num-f sec-num-lst =
+    let-rec sub lst =
+      match lst with
+      | [] -> ` `
+      | [n] -> arabic n
+      | x::xs -> (arabic x) ^ `.` ^ (sub xs)
+    in
+    match sec-num-lst with
+    | [] -> ` `
+    | n::xs -> (
+      let n = n mod 26 in
+      let s = string-unexplode [n + 0x40] in
+      match xs with
+      | [] -> `付録` ^ s
+      | _  -> s ^ `.` ^ sub xs
+    )
+
+
   let default-section-title-deco ctx depth num-ib title-ib =
     let num-width = get-natural-width num-ib in
     let space = get-font-size ctx *' 0.5 in
@@ -408,6 +432,10 @@ end = struct
     toc-headline-font-depth : int;
     toc-font-size-ratio : int -> float;
     toc-deco      : context -> string -> int -> string option -> inline-text -> block-boxes;
+    appendix-num-fun : int list -> string;
+    appendix-font-size-ratio : int -> float;
+    appendix-title-deco : context -> int -> inline-boxes -> inline-boxes -> block-boxes;
+    appendix-toc-num-fun : int list -> string option;
   |)
 
 
@@ -457,6 +485,15 @@ end = struct
     toc-headline-font-depth = 1;
     toc-font-size-ratio = fun i -> (if i == 1 then 1.3 else 1.1);
     toc-deco      = default-toc-deco;
+    appendix-num-fun = default-appendix-num-f;
+    appendix-font-size-ratio = fun i -> (
+      match i with
+      | 1 -> 1.6
+      | 2 -> 1.3
+      | _ -> 1.15
+    );
+    appendix-title-deco = default-section-title-deco;
+    appendix-toc-num-fun = fun l -> (if List.length l > 3 then None else Some(default-appendix-num-f l));
   |)
 
 
@@ -607,6 +644,19 @@ end = struct
 
   let set-toc-deco f config =
     (| config with toc-deco = f; |)
+
+  let set-appendix-num-fun f config =
+    (| config with appendix-num-fun = f; |)
+
+  let set-appendix-font-size-ratio ratio config =
+    (| config with appendix-font-size-ratio = ratio; |)
+
+  let set-appendix-title-deco f config =
+    (| config with appendix-title-deco = f; |)
+
+  let set-appendix-toc-num-fun f config =
+    (| config with appendix-toc-num-fun = f; |)
+
 
 
   % フォント変更用関数
@@ -948,8 +998,13 @@ end = struct
       let font-size-section = (font-size-normal ()) *' (c#section-font-size-ratio 1) in
       if c#show-toc then
         % ここを弄ると目次の表示を変化させられる
-        let f (sec-num-lst, label, num, title-it) =
-          let sec-num-str-opt = c#toc-num-fun sec-num-lst in
+        let f (sec-num-lst, label, is-appendix, title-it) =
+          let sec-num-str-opt =
+            if is-appendix then
+              c#appendix-toc-num-fun sec-num-lst
+            else
+              c#toc-num-fun sec-num-lst
+          in
           let depth = List.length sec-num-lst in
           let font-f =
             if depth <= c#toc-headline-font-depth then
@@ -1098,18 +1153,31 @@ end = struct
     line-break true true ctx ((indent ctx) ++ ib ++ inline-fil)
 
 
+  let-mutable is-appendix <- false
+
   let-mutable sec-num-lst <- []
   let-mutable sec-num <- 0
+  let-mutable appendix-num <- 0
 
 
-  % TODO
+  let-block ctx +appendix =
+    let () = is-appendix <- true in
+    block-nil
+
+
   let section-title-format ctx sec-num-lst label-opt is-omit-num outline-title-opt title =
     let title-ctx =
       let font-size =
-        sec-num-lst
-        |> List.length
-        |> (!config-ref)#section-font-size-ratio
-        |> (*') (font-size-normal ())
+        if !is-appendix then
+          sec-num-lst
+          |> List.length
+          |> (!config-ref)#appendix-font-size-ratio
+          |> (*') (font-size-normal ())
+        else
+          sec-num-lst
+          |> List.length
+          |> (!config-ref)#section-font-size-ratio
+          |> (*') (font-size-normal ())
       in
       ctx |> set-headline-font
           |> set-font-size font-size
@@ -1122,7 +1190,12 @@ end = struct
       | Some(s) -> s
       | None -> extract-string title-ib
     in
-    let num = (!config-ref)#section-num-fun sec-num-lst in
+    let num =
+      if !is-appendix then
+        (!config-ref)#appendix-num-fun sec-num-lst
+      else
+        (!config-ref)#section-num-fun sec-num-lst
+    in
     let label =
       match label-opt with
       | Some(s) -> s
@@ -1139,7 +1212,7 @@ end = struct
       outline-ref <- (List.length sec-num-lst, num ^ #` `# ^ outline-title, label, is-open) :: !outline-ref
     in
     let () = register-cross-reference-num label num in
-    let () = toc-ref <- (sec-num-lst, label, num, title) :: !toc-ref in
+    let () = toc-ref <- (sec-num-lst, label, !is-appendix, title) :: !toc-ref in
     let num-ib =
       num
       |> embed-string
@@ -1149,10 +1222,20 @@ end = struct
     (register-doc-hyper-link label (num-ib ++ ib-hook), title-ib)
 
   let-block ctx +section ?:label-opt ?:is-omit-num-opt ?:outline-title-opt title inner =
-    let () = sec-num <- !sec-num + 1 in
-    let old-sec-num-lst = !sec-num-lst in
-    let () = sec-num-lst <- !sec-num::!sec-num-lst in
-    let old-sec-num = !sec-num in
+    let (old-sec-num-lst, old-sec-num) =
+      if !is-appendix && List.length !sec-num-lst == 0 then
+        let () = appendix-num <- !appendix-num + 1 in
+        let old-sec-num-lst = !sec-num-lst in
+        let () = sec-num-lst <- !appendix-num::!sec-num-lst in
+        let old-sec-num = !appendix-num in
+        (old-sec-num-lst, old-sec-num)
+      else
+        let () = sec-num <- !sec-num + 1 in
+        let old-sec-num-lst = !sec-num-lst in
+        let () = sec-num-lst <- !sec-num::!sec-num-lst in
+        let old-sec-num = !sec-num in
+        (old-sec-num-lst, old-sec-num)
+    in
     let is-omit-num =
       match is-omit-num-opt with
       | Some(b) -> b
@@ -1165,7 +1248,10 @@ end = struct
       ctx |> set-paragraph-margin (font-size-normal () *' 2.0) (font-size-normal () *' 1.5)
     in
     let title-bb =
-      (!config-ref)#section-title-deco title-ctx (List.length !sec-num-lst) num-ib title-ib
+      if !is-appendix then
+        (!config-ref)#appendix-title-deco title-ctx (List.length !sec-num-lst) num-ib title-ib
+      else
+        (!config-ref)#section-title-deco title-ctx (List.length !sec-num-lst) num-ib title-ib
     in
     let () = sec-num <- 0 in
     let bb = read-block ctx inner in

@@ -13,6 +13,7 @@ Supported basic functions for writing documents.
 - table of contents
 - section
 - bibliography
+- appendix
 - floating figure
 - multi-column
 - reference
