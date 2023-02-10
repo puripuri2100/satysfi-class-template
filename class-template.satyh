@@ -46,6 +46,7 @@ module ClassTemplate : sig
   val set-columnsep : length -> config -> config
   val set-indent-length : (context -> length) -> config -> config
   val set-abstract : block-text -> config -> config
+  val set-introduction : block-text -> config -> config
   val set-thanks-marks : string list -> config -> config
   val set-footnote-mark : inline-text -> config -> config
   val set-text-font-cjk   : (string * float * float) -> config -> config
@@ -93,6 +94,8 @@ module ClassTemplate : sig
   val bibitem : string -> inline-text -> bibitem
   val +thebibliography : [bibitem list] block-cmd
   val \cite : [string list] inline-cmd
+
+  val +clear-page : [] block-cmd
 
 end = struct
 
@@ -172,6 +175,16 @@ end = struct
     let n = round (text-width /' (get-natural-width ib)) - 1 in
     repeat-inline n ib
 
+
+    % Introductionの開始する位置を記録する
+    let register-introduction-start-page () =
+      hook-page-break-block (fun pbinfo _ -> register-cross-reference `introduction-start-page` (arabic pbinfo#page-number))
+
+    % ページ番号を開始する位置を取得する
+    let get-introduction-start-page () =
+      match get-cross-reference `introduction-start-page` with
+      | None -> 1
+      | Some (page-num) -> string2int page-num
 
 
     % ページ番号を開始する位置を記録する
@@ -339,7 +352,13 @@ end = struct
 
   let default-section-title-deco ctx depth num-ib title-ib =
     let num-width = get-natural-width num-ib in
-    let space = get-font-size ctx *' 0.5 in
+    let space =
+      if num-width <' 0.001pt then
+        %% 節番号が無い場合
+        0pt
+      else
+        get-font-size ctx *' 0.5
+    in
     let p = (num-width +' space, 0pt, 0pt, 0pt) in
     block-frame-breakable ctx p VDecoSet.empty (fun ctx -> (
       let ib =
@@ -425,6 +444,7 @@ end = struct
     columnsep     : length;
     indent-length : context -> length;
     abstract      : block-text option;
+    introduction  : block-text option;
     thanks-marks  : string list;
     footnote-mark : inline-text;
     font-info     : font-info;
@@ -479,6 +499,7 @@ end = struct
       font-size *' font-ratio-cjk
     );
     abstract      = None;
+    introduction  = None;
     thanks-marks  = [`*`; `†`; `‡`];
     footnote-mark = {†};
     font-info     = default-font;
@@ -602,6 +623,9 @@ end = struct
 
   let set-abstract abstract config =
     (| config with abstract = Some(abstract); |)
+
+  let set-introduction introduction config =
+    (| config with introduction = Some(introduction); |)
 
   let set-thanks-marks marks config =
       (| config with thanks-marks = marks;|)
@@ -933,6 +957,11 @@ end = struct
     in
 
     % 参照系を確定させるために早めに評価する
+    let introduction-opt =
+      match c#introduction with
+      | None -> None
+      | Some(bt) -> Some(read-block ctx bt)
+    in
     let bb-main = read-block ctx main in
 
     % コンテンツを表示させる部分の指定
@@ -1018,14 +1047,17 @@ end = struct
       let font-size-section = (font-size-normal ()) *' (c#section-font-size-ratio 1) in
       if c#show-toc then
         % ここを弄ると目次の表示を変化させられる
-        let f (sec-num-lst, label, is-appendix, title-it) =
+        let f (sec-num-lst-opt, depth, label, is-appendix, title-it) =
           let sec-num-str-opt =
-            if is-appendix then
-              c#appendix-toc-num-fun sec-num-lst
-            else
-              c#toc-num-fun sec-num-lst
+            match sec-num-lst-opt with
+            | None -> Some(` `) % 節番号が無い場合
+            | Some(sec-num-lst) -> (
+              if is-appendix then
+                c#appendix-toc-num-fun sec-num-lst
+              else
+                c#toc-num-fun sec-num-lst
+            )
           in
-          let depth = List.length sec-num-lst in
           let font-f =
             if depth <= c#toc-headline-font-depth then
               set-headline-font
@@ -1184,7 +1216,7 @@ end = struct
     block-nil
 
 
-  let section-title-format ctx sec-num-lst label-opt is-omit-num outline-title-opt title =
+  let section-title-format ctx is-omit-num sec-num-lst depth label-opt is-omit-num outline-title-opt title =
     let title-ctx =
       let font-size =
         if !is-appendix then
@@ -1210,10 +1242,13 @@ end = struct
       | None -> extract-string title-ib
     in
     let num =
-      if !is-appendix then
-        (!config-ref)#appendix-num-fun sec-num-lst
+      if is-omit-num then
+        ` `
       else
-        (!config-ref)#section-num-fun sec-num-lst
+        if !is-appendix then
+          (!config-ref)#appendix-num-fun sec-num-lst
+        else
+          (!config-ref)#section-num-fun sec-num-lst
     in
     let label =
       match label-opt with
@@ -1226,21 +1261,46 @@ end = struct
       else
         num
     in
-    let is-open = (List.length sec-num-lst) <= 3 in
+    let is-open = depth <= 3 in
     let () =
-      outline-ref <- (List.length sec-num-lst, num ^ #` `# ^ outline-title, label, is-open) :: !outline-ref
+      outline-ref <- (depth, num ^ #` `# ^ outline-title, label, is-open) :: !outline-ref
     in
     let () = register-cross-reference-num label num in
-    let () = toc-ref <- (sec-num-lst, label, !is-appendix, title) :: !toc-ref in
+    let toc-data =
+      if is-omit-num then
+        (None, depth, label, !is-appendix, title)
+      else
+        (Some(sec-num-lst), depth, label, !is-appendix, title)
+    in
+    let () = toc-ref <- toc-data :: !toc-ref in
     let num-ib =
-      num
-      |> embed-string
-      |> read-inline title-ctx
+      if is-omit-num then
+        inline-nil
+      else
+        num
+        |> embed-string
+        |> read-inline title-ctx
     in
     let ib-hook = register-cross-reference-page label in
     (register-doc-hyper-link label (num-ib ++ ib-hook), title-ib)
 
+  let-mutable is-omit-num-ref <- false
+  let-mutable depth-ref <- 0
   let-block ctx +section ?:label-opt ?:is-omit-num-opt ?:outline-title-opt title inner =
+    let old-depth = !depth-ref in
+    let () = depth-ref <- !depth-ref + 1 in
+    let (old-is-omit-num, is-omit-num) =
+      if !is-omit-num-ref then
+        (true, true)
+      else
+        match is-omit-num-opt with
+        | Some(b) -> (
+          let old = !is-omit-num-ref in
+          let () = is-omit-num-ref <- b in
+          (old, b)
+        )
+        | None -> (false, false)
+    in
     let (old-sec-num-lst, old-sec-num) =
       if !is-appendix && List.length !sec-num-lst == 0 then
         let () = appendix-num <- !appendix-num + 1 in
@@ -1255,13 +1315,8 @@ end = struct
         let old-sec-num = !sec-num in
         (old-sec-num-lst, old-sec-num)
     in
-    let is-omit-num =
-      match is-omit-num-opt with
-      | Some(b) -> b
-      | None -> false
-    in
     let (num-ib, title-ib) =
-      section-title-format ctx (List.reverse !sec-num-lst) label-opt is-omit-num outline-title-opt title
+      section-title-format ctx is-omit-num (List.reverse !sec-num-lst) !depth-ref label-opt is-omit-num outline-title-opt title
     in
     let title-ctx =
       ctx |> set-paragraph-margin (font-size-normal () *' 2.0) (font-size-normal () *' 1.5)
@@ -1274,6 +1329,17 @@ end = struct
     in
     let () = sec-num <- 0 in
     let bb = read-block ctx inner in
+    let () = depth-ref <- old-depth in
+    let () =
+      match (old-is-omit-num, is-omit-num) with
+      | (true, false) -> (
+        is-omit-num-ref <- old-is-omit-num
+      )
+      | (false, true) -> (
+        is-omit-num-ref <- old-is-omit-num
+      )
+      | _ -> ()
+    in
     let () = sec-num-lst <- old-sec-num-lst in
     let () = sec-num <- old-sec-num in
     title-bb +++ bb
@@ -1585,5 +1651,9 @@ end = struct
       |> List.fold-lefti join inline-nil
     in
     bracket-open ++ main ++ bracket-close
+
+
+  let-block ctx +clear-page = clear-page
+
 
 end
