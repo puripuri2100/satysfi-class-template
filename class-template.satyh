@@ -952,6 +952,13 @@ end = struct
     in
     sub block-nil (List.reverse float-boxes)
 
+  % section関係のフック
+  let-mutable is-appendix <- false
+
+  let-mutable sec-num-lst <- []
+  let-mutable sec-num <- 0
+  let-mutable appendix-num <- 0
+
   let document c main =
     % 参照の中身を確定させるために、configの方を先に評価しないといけない
     let () = config-ref <- c in
@@ -1047,13 +1054,17 @@ end = struct
     let () = footnote-in-title <- false in
 
     let title-page-counter =
-      if c#show-title && c#title-page then
+      if c#show-title then
         List.length title-block-lst
       else
         0
     in
 
     % 参照系を確定させるために早めに評価する
+    let () = is-appendix <- false in
+    let () = sec-num-lst <- [] in
+    let () = sec-num <- 0 in
+    let () = appendix-num <- 0 in
     let introduction-opt =
       match c#introduction with
       | None -> None
@@ -1062,6 +1073,11 @@ end = struct
         Some(bb)
       )
     in
+
+    let () = is-appendix <- false in
+    let () = sec-num-lst <- [] in
+    let () = sec-num <- 0 in
+    let () = appendix-num <- 0 in
     let bb-main =
       read-block ctx main
     in
@@ -1269,7 +1285,10 @@ end = struct
       let hook1 = register-introduction-start-page () in
       let hook2 = register-start-page () in
       let plus-new-pages =
-        break-page-n title-page-counter c#multicolumn
+        if c#show-title && c#title-page then
+          break-page-n title-page-counter c#multicolumn
+        else
+          block-nil
       in
       let introduction-bb =
         match introduction-opt with
@@ -1283,7 +1302,7 @@ end = struct
           block-nil
       in
       plus-new-pages +++ hook1 +++ introduction-bb +++
-        toc-before-break +++ hook2 +++ bb-toc +++ bb-main
+        toc-before-break +++ hook2 +++ block-skip 0pt +++ bb-toc +++ bb-main
     in
     let doc-main = page-break-multicolumn page seps columnhookf columnendhookf pagecontf pagepartsf (bb-thanks +++ bb-main +++ bb-last) in
 
@@ -1367,13 +1386,6 @@ end = struct
     line-break true true ctx ((indent ctx) ++ ib ++ inline-fil)
 
 
-  let-mutable is-appendix <- false
-
-  let-mutable sec-num-lst <- []
-  let-mutable sec-num <- 0
-  let-mutable appendix-num <- 0
-
-
   let-block ctx +appendix =
     let () = is-appendix <- true in
     block-nil
@@ -1383,13 +1395,11 @@ end = struct
     let title-ctx =
       let font-size =
         if !is-appendix then
-          sec-num-lst
-          |> List.length
+          depth
           |> (!config-ref)#appendix-font-size-ratio
           |> (*') (font-size-normal ())
         else
-          sec-num-lst
-          |> List.length
+          depth
           |> (!config-ref)#section-font-size-ratio
           |> (*') (font-size-normal ())
       in
@@ -1474,11 +1484,14 @@ end = struct
         let old-sec-num = !appendix-num in
         (old-sec-num-lst, old-sec-num)
       else
-        let () = sec-num <- !sec-num + 1 in
-        let old-sec-num-lst = !sec-num-lst in
-        let () = sec-num-lst <- !sec-num::!sec-num-lst in
-        let old-sec-num = !sec-num in
-        (old-sec-num-lst, old-sec-num)
+        if is-omit-num then
+          (!sec-num-lst, !sec-num)
+        else
+          let () = sec-num <- !sec-num + 1 in
+          let old-sec-num-lst = !sec-num-lst in
+          let () = sec-num-lst <- !sec-num::!sec-num-lst in
+          let old-sec-num = !sec-num in
+          (old-sec-num-lst, old-sec-num)
     in
     let (num-ib, title-ib) =
       section-title-format ctx is-omit-num (List.reverse !sec-num-lst) !depth-ref label is-omit-num outline-title-opt title

@@ -10,7 +10,7 @@ document (
   |> set-title {タイトル\footnote{title}}
   |> set-author {\@puripuri2100\thanks{\url(`https://github.com/puripuri2100`);} \@puripuri2100\thanks{\url(`https://github.com/puripuri2100`);}}
   |> set-show-toc true
-  |> set-title-page true
+  |> set-title-page false
   |> set-multicolumn 2
   |> set-abstract ('<
     +abstract ?:({Abstract}) <
