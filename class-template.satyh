@@ -662,7 +662,7 @@ end = struct
   let set-toc-deco f config =
     (| config with toc-deco = f; |)
 
-  let set-title-toc-deco f config =
+  let set-toc-title-deco f config =
     (| config with toc-title-deco = f; |)
 
   let set-appendix-num-fun f config =
@@ -1053,7 +1053,7 @@ end = struct
                 |> set-headline-font
           in
           (!config-ref)#toc-title
-          |> (!config-ref)#toc-title-deco
+          |> (!config-ref)#toc-title-deco ctx
         in
         if c#title-page then
           toc-title +++ toc-main +++ clear-page%(break-page c#multicolumn)
