@@ -1093,7 +1093,12 @@ end = struct
           | None -> 0pt
           | Some(f, bb) -> (
             let h = get-natural-length bb in
-            let space = (text-height -' h) *' f in
+            let space =
+              if c#title-page then
+                (text-height -' h) *' f
+              else
+                0pt
+            in
             get-natural-length (block-skip space +++ bb)
           )
         else
@@ -1159,7 +1164,12 @@ end = struct
             | None -> block-nil
             | Some(f, bb) -> (
               let h = get-natural-length bb in
-              let space = (text-height -' h) *' f in
+              let space =
+                if c#title-page then
+                  (text-height -' h) *' f
+                else
+                  0pt
+              in
               block-skip space +++ bb
             )
           else
