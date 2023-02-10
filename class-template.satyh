@@ -63,6 +63,7 @@ module ClassTemplate : sig
   val set-toc-headline-font-depth : int -> config -> config
   val set-toc-font-size-ratio : (int -> float) -> config -> config
   val set-toc-deco : (context -> string -> int -> string option -> inline-text -> block-boxes) -> config -> config
+  val set-toc-title-deco : (context -> inline-text -> block-boxes) -> config -> config
   val set-appendix-num-fun : (int list -> string) -> config -> config
   val set-appendix-font-size-ratio : (int -> float) -> config -> config
   val set-appendix-title-deco : (context -> int -> inline-boxes -> inline-boxes -> block-boxes) -> config -> config
@@ -390,6 +391,10 @@ end = struct
     )
 
 
+  let default-toc-title-deco ctx toc-title =
+    let ib = read-inline ctx toc-title ++ inline-fil in
+    line-break true false ctx ib
+
 
   % 設定の中身は単なるレコードだが、隠蔽することによって後方互換性を保てるようにする
   type config = (|
@@ -434,6 +439,7 @@ end = struct
     toc-headline-font-depth : int;
     toc-font-size-ratio : int -> float;
     toc-deco      : context -> string -> int -> string option -> inline-text -> block-boxes;
+    toc-title-deco : context -> inline-text -> block-boxes;
     appendix-num-fun : int list -> string;
     appendix-font-size-ratio : int -> float;
     appendix-title-deco : context -> int -> inline-boxes -> inline-boxes -> block-boxes;
@@ -492,6 +498,7 @@ end = struct
     toc-headline-font-depth = 1;
     toc-font-size-ratio = fun i -> (if i == 1 then 1.3 else 1.1);
     toc-deco      = default-toc-deco;
+    toc-title-deco = default-toc-title-deco;
     appendix-num-fun = default-appendix-num-f;
     appendix-font-size-ratio = fun i -> (
       match i with
@@ -654,6 +661,9 @@ end = struct
 
   let set-toc-deco f config =
     (| config with toc-deco = f; |)
+
+  let set-title-toc-deco f config =
+    (| config with toc-title-deco = f; |)
 
   let set-appendix-num-fun f config =
     (| config with appendix-num-fun = f; |)
@@ -1042,8 +1052,8 @@ end = struct
             ctx |> set-font-size font-size-section
                 |> set-headline-font
           in
-          ((read-inline ctx (!config-ref)#toc-title) ++ inline-fil)
-          |> line-break true false ctx
+          (!config-ref)#toc-title
+          |> (!config-ref)#toc-title-deco
         in
         if c#title-page then
           toc-title +++ toc-main +++ clear-page%(break-page c#multicolumn)
