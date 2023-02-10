@@ -79,20 +79,11 @@ end = struct
     ClassTemplate.set-title-multiline (sub titleJp-lst) config
 
 
-  let-inline ctx \thanks-mark n =
-    let font-size = get-font-size ctx in
-    let mark = embed-string (`*` ^ arabic n) in
-    let mark-ctx =
-      ctx |> set-font-size (font-size *' 0.9)
-          |> set-manual-rising (font-size *' 0.25)
-    in
-    let mark = read-inline mark-ctx mark in
-    mark
-
   let-mutable author-count <- 0
   let-inline ctx \author affiliate name en =
     let () = author-count <- !author-count + 1 in
-    let thanks = read-inline ctx {\ClassTemplate.thanks?:({\thanks-mark(!author-count);}){#en;}} in
+    let mark = embed-string (`*` ^ arabic !author-count) in
+    let thanks = read-inline ctx {\ClassTemplate.thanks?:({#mark;}){#en;}} in
     let font-size = get-font-size ctx in
     let affiliate = read-inline ctx affiliate ++ thanks in
     let name = read-inline ctx name in

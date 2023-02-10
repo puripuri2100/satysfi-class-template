@@ -12,8 +12,8 @@ document (
   default-config
   |> set-title {|日本語のタイトル|長くても改行可能|}{English Title}
   |> set-author-multiline {|
-    \author{\@puripuri2100 1}{筑波大学}{\@puripuri2100, University of Tsukuba}
-    \author{\@puripuri2100 2}{筑波大学}{\@puripuri2100, University of Tsukuba}
+    \author{\@puripuri2100 1}{筑波大学}{\@puripuri2100 1, University of Tsukuba}
+    \author{\@puripuri2100 2}{筑波大学}{\@puripuri2100 2, University of Tsukuba}
   |}
 ) '<
   +section {はじめに} <
