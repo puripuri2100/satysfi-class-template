@@ -1,5 +1,6 @@
 @import: class-template
 % @require: class-template/class-template
+@require: color
 
 open ClassTemplate
 in
@@ -24,6 +25,8 @@ document (
       +p{はじめにです}
     >
   >
+  |> set-doc-link-color (1pt, Color.red)
+  |> set-url-link-color (1pt, Color.blue)
 ) '<
   +section {タイトル} <
     +p{p}

@@ -73,16 +73,20 @@ module ClassTemplate : sig
   val set-toc-num-fun :  (int list -> string option) -> config -> config
   val set-toc-headline-font-depth : int -> config -> config
   val set-toc-font-size-ratio : (int -> float) -> config -> config
-  val set-toc-deco : (context -> int -> string option -> inline-text -> string -> block-boxes) -> config -> config
+  val set-toc-deco : (context -> int -> string option -> string -> inline-text -> string -> block-boxes) -> config -> config
   val set-toc-title-deco : (context -> inline-text -> block-boxes) -> config -> config
   val set-appendix-num-fun : (int list -> string) -> config -> config
   val set-appendix-font-size-ratio : (int -> float) -> config -> config
   val set-appendix-title-deco : (context -> int -> inline-boxes -> inline-boxes -> block-boxes) -> config -> config
   val set-appendix-toc-num-fun : (int list -> string option) -> config -> config
+  val set-doc-link-color : (length * color) -> config -> config
+  val set-url-link-color : (length * color) -> config -> config
 
 
   val ignore-header-footer-inline : unit -> inline-boxes
   val ignore-header-footer-block : unit -> block-boxes
+
+  val doc-hyper-link : (length * color) option -> string -> inline-boxes -> inline-boxes
 
   val +abstract : [inline-text?; block-text] block-cmd
 
@@ -244,7 +248,7 @@ end = struct
     ))
 
 
-  let default-toc-deco ctx depth num-str-opt title page-num =
+  let default-toc-deco ctx depth num-str-opt label title page-num =
     match num-str-opt with
     | None -> block-nil
     | Some(num-str) -> (
@@ -257,7 +261,11 @@ end = struct
       let ctx =
         ctx |> set-font-size fs
       in
-      let num-ib = num-str |> embed-string |> read-inline ctx in
+      let num-ib =
+        num-str
+        |> embed-string
+        |> read-inline ctx
+      in
       let num-width = get-natural-width num-ib in
       let space =
         if string-length num-str == 0 then
@@ -285,6 +293,7 @@ end = struct
         let ib =
           inline-skip ((num-width +' space) *' (-1.0)) ++ num-ib ++
             inline-skip space ++ title-ib ++ fil-ib ++ page-ib
+          |> inline-frame-breakable (0pt, 0pt, 0pt, 0pt) (Annot.link-to-location-frame label None)
         in
         line-break true true ctx ib
       ))
@@ -346,12 +355,14 @@ end = struct
     toc-num-fun   : int list -> string option;
     toc-headline-font-depth : int;
     toc-font-size-ratio : int -> float;
-    toc-deco       : context -> int -> string option -> inline-text -> string -> block-boxes;
+    toc-deco       : context -> int -> string option -> string -> inline-text -> string -> block-boxes;
     toc-title-deco : context -> inline-text -> block-boxes;
     appendix-num-fun : int list -> string;
     appendix-font-size-ratio : int -> float;
     appendix-title-deco : context -> int -> inline-boxes -> inline-boxes -> block-boxes;
     appendix-toc-num-fun : int list -> string option;
+    doc-link-color : (length * color) option;
+    url-link-color : (length * color) option;
   |)
 
 
@@ -428,6 +439,8 @@ end = struct
     );
     appendix-title-deco = default-section-title-deco;
     appendix-toc-num-fun = fun l -> (if List.length l > 3 then None else Some(default-appendix-num-f l));
+    doc-link-color = None;
+    url-link-color = None;
   |)
 
 
@@ -620,6 +633,12 @@ end = struct
 
   let set-appendix-toc-num-fun f config =
     (| config with appendix-toc-num-fun = f; |)
+
+  let set-doc-link-color c config =
+    (| config with doc-link-color = Some(c); |)
+
+  let set-url-link-color c config =
+    (| config with url-link-color = Some(c); |)
 
 
 
@@ -837,14 +856,14 @@ end = struct
   % また、NoneをSome((0.5pt, Color.blue))などにすると、
   % そのような枠線が周りに着くことになる
   % この枠線は印刷されない（ことになっている）
-  let doc-hyper-link label ib =
+  let doc-hyper-link d-opt label ib =
     inline-frame-breakable (0pt, 0pt, 0pt, 0pt)
-      (Annot.link-to-location-frame label None) ib
+      (Annot.link-to-location-frame label d-opt) ib
 
 
   % \ref \ref-page 定義
   let-inline ctx \ref label =
-    doc-hyper-link label
+    doc-hyper-link (!config-ref)#doc-link-color label
       (read-inline ctx (embed-string (get-cross-reference-num label)))
 
 
@@ -853,7 +872,7 @@ end = struct
     |> get-cross-reference-page-fix
     |> embed-string
     |> read-inline ctx
-    |> doc-hyper-link label
+    |> doc-hyper-link (!config-ref)#doc-link-color label
 
 
   let-rec break-page column =
@@ -1205,7 +1224,7 @@ end = struct
                 |> set-paragraph-margin (fs *' c#paragraph-margin-top-ratio) (fs *' c#paragraph-margin-bottom-ratio)
           in
           let page-num = get-cross-reference-page-fix label in
-          c#toc-deco ctx depth sec-num-str-opt title-it page-num
+          c#toc-deco ctx depth sec-num-str-opt label title-it page-num
         in
         let toc-main =
           !toc-ref
@@ -1518,7 +1537,7 @@ end = struct
         ctx |> set-font-size (font-size *' 0.75)
             |> set-manual-rising (font-size *' 0.25)
       in
-      (doc-hyper-link label (read-inline ctx {#mark;#num-it;}))
+      (doc-hyper-link (!config-ref)#doc-link-color label (read-inline ctx {#mark;#num-it;}))
     in
     % ページ下部に出現するブロック
     let bb () =
@@ -1725,7 +1744,10 @@ end = struct
     |> List.map f
     |> List.fold-left (++) inline-nil
 
-  let-inline \url url = {\href (url) {\non-hyph(url);}}
+  let-inline \url url =
+    match (!config-ref)#url-link-color with
+    | None -> {\href (url) {\non-hyph(url);}}
+    | Some(v) -> {\href ?:(v) (url) {\non-hyph(url);}}
 
 
   type bibitem = string * string * inline-text
@@ -1748,7 +1770,7 @@ end = struct
     % ここを修正すれば思い通りの状態にできる
     let text = {[#it-num;]} in
     let space = inline-skip (get-font-size ctx) in
-    let head-ib = read-inline ctx text ++ space in
+    let head-ib = register-doc-hyper-link label (read-inline ctx text) ++ space in
     let head-width = get-natural-width head-ib in
     let pads = (head-width, 0pt, 0pt, 0pt) in
     block-frame-breakable ctx pads VDecoSet.empty (fun ctx -> (
@@ -1782,7 +1804,7 @@ end = struct
   let cite-scheme ctx key =
     let label = `bibitem:` ^ key in
     let num = embed-string (get-cross-reference-num label) in
-    doc-hyper-link label (read-inline ctx num)
+    doc-hyper-link (!config-ref)#doc-link-color label (read-inline ctx num)
 
   let-inline ctx \cite keys =
     let comma = read-inline ctx {,\ } in
