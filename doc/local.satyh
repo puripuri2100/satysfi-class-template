@@ -1,0 +1,37 @@
+@require: vdecoset
+@require: image/image
+@require: color
+@require: code-printer/code-printer
+@require: code-printer/code-syntax
+@require: code-printer/code-theme
+
+
+let-block ctx +image ?:width-opt path =
+  let it =
+    match width-opt with
+    | None -> {\include-image(path);}
+    | Some(w) -> {\include-image ?:(w) (path);}
+  in
+  let p = (2pt, 2pt, 2pt, 2pt) in
+  let d = VDecoSet.simple-frame 2pt Color.white Color.black in
+  block-frame-breakable ctx p d (fun ctx -> (
+    let ib = inline-fil ++ read-inline ctx it ++ inline-fil in
+    line-break true true ctx ib
+  ))
+
+
+
+let-block +sc code = '<
+  +code-printer ?:(CodePrinter.make-config CodeSyntax.satysfi CodeTheme.one-light) (code);
+>
+
+let-inline \sc code = {\code-printer ?:(CodePrinter.make-config CodeSyntax.satysfi CodeTheme.one-light) (code);}
+
+let-inline \sci code = {\inline-code ?:(CodePrinter.make-config CodeSyntax.satysfi CodeTheme.one-light) (code);}
+
+
+let-block +shc code = '<
+  +code-printer ?:(CodePrinter.default |> CodePrinter.set-theme CodeTheme.one-light) (code);
+>
+
+let-inline \shc code = {\code-printer ?:(CodePrinter.default |> CodePrinter.set-theme CodeTheme.one-light) (code);}

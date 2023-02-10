@@ -1,0 +1,46 @@
+;; For Satyrographos 0.0.2 series
+(version 0.0.2)
+
+;; Library declaration
+(library
+  ;; Library name
+  (name "class-template")
+  ;; Library version
+  (version "0.1.0")
+  ;; Files
+  (sources
+    ((packageDir "src")))
+  ;; OPAM package file
+  (opam "satysfi-class-template.opam")
+  ;; Dependency
+  (dependencies
+    ((dist ()) ; Standard library
+     (base ()) ; Base library
+     (num-conversion ())
+    )))
+
+;; Library doc declaration
+(libraryDoc
+  ;; Library doc name
+  (name "class-template-doc")
+  ;; Library version
+  (version "0.1.0")
+  ;; Working directory to build docs
+  (workingDirectory "doc")
+  ;; Build commands
+  (build
+    ;; Run SATySFi
+    ((satysfi "manual-class-template-ja.saty" "-o" "manual-class-template-ja.pdf")))
+  ;; Files
+  (sources
+    ((doc "manual-class-template-ja.pdf" "doc/manual-class-template-ja.pdf")))
+  ;; OPAM package file
+  (opam "satysfi-class-template-doc.opam")
+  ;; Dependency
+  (dependencies
+    ((class-template ()) ; the main library
+     (dist ()) ; Standard library
+     (base ()) ; Base library
+     (code-printer ())
+     (image ())
+    )))

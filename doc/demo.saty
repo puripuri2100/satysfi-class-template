@@ -1,12 +1,12 @@
-@import: class-template
 % @require: class-template/class-template
+@import: class-template
 @require: color
 
 open ClassTemplate
 in
 
 document (
-  default-config
+  default-setting
   |> set-title {タイトル\footnote{title}}
   |> set-author {\@puripuri2100\thanks{\url(`https://github.com/puripuri2100`);} \@puripuri2100\thanks{\url(`https://github.com/puripuri2100`);}}
   |> set-show-toc true

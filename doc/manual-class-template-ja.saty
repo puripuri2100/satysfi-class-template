@@ -1,0 +1,391 @@
+@import: ../src/class-template
+@require: color
+@require: itemize
+@import: local
+
+open ClassTemplate
+
+in
+
+document (
+  default-setting
+  |> set-title {class-templateマニュアル}
+  |> set-author {Naoki Kaneko \<puripuri2100\@gmail.com\>}
+  |> set-show-toc true
+  |> set-abstract '<
+    +abstract <
+      +p{従来のクラスファイルではデザインに関する部分を自由に設定することは難しく、都度クラスファイルの実装を行う必要があった。また、多段組に対応できるクラスファイルはとても少なかった。}
+      +p{そこで、多段組時においても体裁が崩れないようにしつつも、ユーザーが自由にデザインを弄ることができるクラスファイルを作成した。これにより、このクラスファイル単体をそのま使い、都度用途に応じてデザインを変更するような使い方と、このクラスファイルの設定機能を駆使して新しいクラスファイルを比較的簡単に作成するような使い方のどちらもできるようになった。}
+    >
+  >
+  |> set-doc-link-color (1pt, Color.red)
+  |> set-url-link-color (1pt, Color.blue)
+) '<
+  +section {簡単な使い方} <
+    +section {インストール} <
+      +p{satyrographos(\url(`https://github.com/na4zagin3/satyrographos`);)を使ってインストールすることを想定しています。satyrographos v0.0.2.6以上及び\SATySFi; 0.0.7-26-g9f4b68ec以上がインストールされている状態で以下のコードをシェルなどで実行してください。：\shc(`opam update
+opam install satysfi-code-template
+satyrographos install`);もし、このライブラリの最新版をリポジトリから直接インストールしたいと思った場合には以下のコードを実行してください。：\shc(`opam pin add "git+https://github.com/puripuri2100/satysfi-class-template.git"
+opam update
+opam install satysfi-code-template
+satyrographos install`);}
+    >
+    +section {パッケージの読み込み} <
+      +p{このクラスファイルはclass-template単体で動きます。そのため、以下のコードをsatyファイルの冒頭に記述するだけで機能を使うことができます。：\sc(`@require: class-template/class-template`);}
+      +p{このクラスファイルのモジュールは\sci(`ClassTemplate`);です。このモジュール内で定義されている多くの関数及びコマンドをより簡単に呼び出すために、文書ファイルの冒頭で\sci(`open`);すると良いでしょう。以下、その前提でモジュール名を省略して記述します。}
+    >
+    +section {簡単な文書の執筆} <
+      +p{このクラスファイルで定義されている\sci(`document`);関数は第一引数に様々な設定を、第二引数に文書本体を取る設計になっています。標準ライブラリの設計とはやや形式が異なるため、注意をしてください。}
+      +p{タイトルと著者名を設定し、簡単な文書を書くようなコードは以下のようになります。：\sc(`@require: class-template/class-template
+
+open ClassTemplate
+
+in
+
+document (
+  default-setting
+  |> set-title {タイトル}
+  |> set-author {著者名}
+) '<
+  +section {節} <
+    +section {小節} <
+      +p{テキスト}
+    >
+  >
+>`);デフォルトの設定は\sci(`default-setting`);という値で定義されています。これにたいしてパイプライン演算子(\sci(`|>`);)\footnote{パイプライン演算子は関数適用が多重入れ子になることを防ぐための便利機能です。\sci(`f (g x)`);という値を\sci(`x |> g |> f`);のように書くことができます。上記の例では、\sci(`set-author {著者名} (set-title {タイトル} (default-setting))`);という状態と等価です。パイプライン演算子を使った方が見やすくなっていることがわかると思います。}を用いて設定を追加していき、好みのデザインにしていきます。タイトルを設定するのは\sci(`set-title`);関数で、著者名を設定するのは\sci(`set-author`);関数です。}
+      +p{節は全て\sci(`+section`);コマンドで記述します。階層の深さは自動で判定されます。段落の記述には\sci(`+p`);コマンドを用います。}
+    >
+    +section {提供しているコマンド} <
+      +p{このクラスファイルが提供しているコマンドを紹介します。}
+      +section {パラグラフ} <
+        +p{\sci(`+p : [inline-text] inline-cmd`);というコマンドにより提供されます。}
+        +p{パラグラフを記述するのに使用します。引数にはインラインテキストのみを受け取ります。}
+      >
+      +section {節} <
+        +p{\sci(`+section : [string?; bool?; string?; inline-text; block-text] block-cmd`);というコマンドにより提供されます。}
+        +p{節の構造を記述するために使用します。必須引数は2つで、1つ目が節見出し、2つ目が節の中身です。}
+        +p{オプション引数は3つあり、それぞれ先頭から順に\enumerate{
+          * 相互参照時に使うラベル
+          * 節番号を表示しないようにするフラグ
+          * PDFのしおり機能に表示する文字列
+        }となっています。例えば\sc(``+section ?* ?:(true) ?:(`節テスト`) {節テスト} <>``);のように使用します。この例では\enumerate {
+          * ラベルは付与しない
+          * 節番号を表示しない
+          * PDFのしおりには「節テスト」と表示される
+          * 節タイトルは「節テスト」
+        }という意味になります。もちろん、オプション引数は全て省略することができ、その場合は\enumerate{
+          * ラベルは付与しない
+          * 節番号を表示する
+          * 節タイトルは節見出しを良い感じに文字列に変換したものに自動でなる
+        }という設定になります。}
+      >
+      +section {脚注} <
+        +p{\sci(`\footnote : [inline-text?; inline-text] inline-cmd`);というコマンドにより提供されます。}
+        +p{必須引数は1つで、脚注の中身を表します。オプション引数は1つで、脚注のマークを任意の物に変更することができます。番号は自動では付与されません。}
+        +p{例えば\sc(`+p{テキスト\footnote{脚注}テキスト}`);のように使用します。脚注のマークを変える場合には\sc(`+p{テキスト\footnote ?:({†1}) {脚注}テキスト}`);のようにして使用します。}
+      >
+      +section {所属} <
+        +p{\sci(`\thanks : [inline-text?; inline-text] inline-cmd`);というコマンドにより提供されます。}
+        +p{使い方は\sci(`\footnote`);コマンドと同じです。オプション引数もマークを帰る場合に使用します。}
+        +p{\sc(`+p{Naoki Kaneko\thanks{University of Tsukuba}}`);のようにして使用します。}
+      >
+      +section {図・表} <
+        +p{図環境は\sci(`+figure : [string?; position?; inline-text; block-text] block-cmd`);というコマンドで、表環境は\sci(`+table : [string?; position?; inline-text; block-text] block-cmd`);というコマンドで提供されます。図の読み込み機能や具体的な表組機能は提供されていないため、imageパッケージやeasytableパッケージなどのそれ専用のパッケージを使用してこの図・表環境に入力してください。}
+        +p{どちらも使い方は同じです。必須引数は2つで、1つ目がキャプションに、2つ目が具体的な画像や表のブロックになります。}
+        +p{オプション引数は2つで、1つ目が相互参照用のラベルで、2つ目が配置位置の指定になります。配置位置の指定には\sci(`top`);と\sci(`here`);の2種類の値が使えます。\sci(`top`);を指定するとページの上部に浮動図として配置され、\sci(`here`);を指定するとその場に図が出力されます。}
+        +p{例えばラベルを\sci(`test fig`);にしその場に出力したい場合には\sc(``+figure ?:(`test fig`) ?:(here) {テスト図} <>``);のように記述します。}
+        +p{浮動図とする場合には\sc(``+figure ?:(`test fig`) ?:(top) {テスト図} <>``);となります。}
+      >
+      +section {相互参照} <
+        +p{図番号や節見出しのページ番号を参照するときなどに使います。コマンドは\listing {
+          * \sci(`\ref : [string] inline-cmd`);
+          * \sci(`\ref-page : [string] inline-cmd`);
+        }の2つが提供されます。\sci(`\ref`);コマンドはラベルを渡すと節番号・図番号などが返ってきます。\sci(`\ref-page`);コマンドはラベルを渡すと、そのラベルに紐づけられたオブジェクトが何ページにあるかが返ってきます。}
+        +p{\sc(``+p{図\ref(`test fig`);を参照すると～}``);のように使います。}
+      >
+      +section {URL} <
+        +p{\sci(`\url : [string] inline-cmd`);コマンドで提供されます。URLを渡すと、ハイパーリンクを紐づけたURL表示を返します。}
+        +p{\sc(```+p{\SATySFi;のリポジトリ：\url(`https://github.com/gfngfn/SATySFi`);}```);のように使います。}
+      >
+      +section {改ページ} <
+        +p{\sci(`+clear-page : [] block-cmd`);コマンドにより提供されます。多段組の際の改ページ処理がまだ甘いところがあり、手動で調節しなければならない場合があります。その場合に使用してください。改ページ（多段組では改段）したい位置に書くとその場で改ページ（多段組では改段）されます。}
+        +p{\sc(`+p{テキスト1}
++clear-page;
++p{テキスト2}`);のようにして使用します。}
+      >
+      +section {付録} <
+        +p{\sci(`+appendix : [] block-cmd`);コマンドにより提供されます。このコマンドを書いたあとの\sci(`+section`);コマンドは付録になります。トップレベル以外に置いた場合の動作は保証されません。}
+        +p{\sc(```+section {節1} <>
++section {節2} <
+  +section {小節1} <>
+  +section {小節2} <>
+>
++appendix;
++section {付録1} <
+  +section {小節1} <>
+  +section {小節2} <>
+>
++section {付録1} <>```);のようにして使うと図\ref(`appendix-demo`);のようになります。}
+        +figure ?:(`appendix-demo`) ?:(top) {付録のデモ} <
+          +image (`img/appendix-demo.jpg`);
+        >
+      >
+      +section {参考文献} <
+        +p{以下の3つのコマンド及び関数によって簡易的な参考文献を使用することができます。\listing{
+          * \sci(`bibitem : string ?-> string -> inline-text -> bibitem`);
+          * \sci(`+thebibliography : [bibitem list] block-cmd`);
+          * \sci(`\cite : [string list] inline-cmd`);
+        }}
+        +p{文献リストの作成は\sc(```+thebibliography [
+  bibitem `key1` {文献1};
+  bibitem ?:(`カスタム番号`) `key2` {文献2};
+  bibitem `key3` {文献3};
+];```);のようにして行います。\sci(`bibitem`);関数にstring型のkeyとinline-text型の文献情報を載せます。オプション引数で、表示番号をカスタムすることができます。上記の例では図\ref(`bib-demo1`);のようになります。}
+        +figure ?:(`bib-demo1`) ?:(top) {参考文献のデモ} <
+          +image (`img/bib-demo1.jpg`);
+        >
+        +p{文献の参照には\sci(`\cite`);関数を使います。keyのリストを与えると、番号を参照して表示します。例えば\sc(```+p{文献\cite[`key2`; `key3`];。}```);と書くと\sc(`文献[カスタム番号, 2]。`);のようになります。}
+      >
+    >
+    +section {簡単な設定} <
+      +p{関数を使った設定の変更の方法を説明します。ここでは文書執筆の際に頻繁に使うことになるである設定項目を説明します。ここで紹介する関数は全てdocument関数の第一引数に与えるための設定にパイプライン演算子を使って適用する物です。}
+      +section {タイトル・著者名等の付与} <
+        +p{タイトルの付与は\listing {
+          * \sci(`set-title : inline-text -> setting -> setting`);
+          * \sci(`set-title-multiline : inline-text lsit -> setting -> setting`);
+        }のいずれかで行います。タイトルが一行の場合には\sci(`set-title`);関数を\sc(`default-setting
+|> set-title {タイトル}`);のように、複数行の場合には\sci(`set-title-multiline`);関数を\sc(`default-setting
+|> set-title-multiline {| タイトル1行目 | 2行目 |}`);のように用います。}
+        +p{著者名の付与は\listing {
+          * \sci(`set-author : inline-text -> setting -> setting`);
+          * \sci(`set-author-multiline : inline-text lsit -> setting -> setting`);
+        }のいずれかで行います。タイトルが一行の場合には\sci(`set-author`);関数を\sc(`default-setting
+|> set-author {著者名}`);のように、複数行の場合には\sci(`set-title-multiline`);関数を\sc(`default-setting
+|> set-author-multiline {| 著者名1行目 | 2行目 |}`);のように用います。}
+        +p{日付の付与は\sci(`set-date : inline-text -> setting -> setting`);で\sc(`default-setting
+|> set-date {2023-02-11}`);のようにして行います。}
+        +p{概要の付与は\sci(`set-abstract : block-text -> setting -> setting`);関数及び\sci(`+abstract : [inline-text?; block-text] block-cmd`);コマンドで行います。\sc(`default-setting
+|> set-abstract '<
+  +abstract <
+    +p{概要}
+  >
+  +abstract {Abstract} <
+    +p{abstract}
+  >
+>`);のようにして行います。\sci(`+abstract`);コマンドには必須引数で段落をわたし、オプション引数でタイトルを指定することができます。}
+      >
+      +section {コンテンツの表示設定} <
+        +p{\listing{
+          * タイトル
+          * 目次
+          * ヘッダー
+          * フッター
+        }の4項目について、表示の有無を切り替えることができます。それぞれ\listing{
+          * \sci(`set-show-title  : bool -> setting -> setting`);
+          * \sci(`set-show-toc    : bool -> setting -> setting`);
+          * \sci(`set-show-header : bool -> setting -> setting`);
+          * \sci(`set-show-footer : bool -> setting -> setting`);
+        }という関数を用いて\sci(`true`);もしくは\sci(`false`);のフラグで管理をします。例えば\listing {
+          * タイトルは表示する
+          * 目次は表示しない
+          * ヘッダーは表示しない
+          * フッターは表示しない
+        }という場合には\sc(`default-setting
+|> set-show-title  true
+|> set-show-toc    false
+|> set-show-header false
+|> set-show-footer false`);のように記述します。}
+        +p{タイトルのみが表示される表紙を作成したい場合には\sci(`set-title-page : bool -> setting -> setting`);という関数を用います。\sc(`default-setting |> set-title-page true`);とすることで表紙が出現します。}
+        +p{参考文献を別ページとしたい場合には\sci(`set-bib-page : bool -> setting -> setting`);を用い、\sci(`set-title-page`);のときと同様に使用します。}
+      >
+      +section {ページサイズ・余白の設定} <
+        +p{PDFの大きさを指定することができます。横幅は\sci(`set-width-page : length -> setting -> setting`);関数で、縦の長さは\sci(`set-height-page : length -> setting -> setting`);関数でそれぞれ設定します。例えばPDFのサイズをB5版にしたい場合には\sc(`default-setting
+|> set-width-page 182mm
+|> set-height-page 257mm`);とします。}
+        +p{上下左右の余白はそれぞれ\listing {
+          * \sci(`set-top-margin    : length -> setting -> setting`);
+          * \sci(`set-bottom-margin : length -> setting -> setting`);
+          * \sci(`set-left-margin   : length -> setting -> setting`);
+          * \sci(`set-right-margin  : length -> setting -> setting`);
+        }という関数で制御します。例えば\listing {
+          * 上30mm
+          * 下25mm
+          * 左20mm
+          * 右20mm
+        }の余白設定をしたい場合には\sc(`default-setting
+|> set-top-margin    30mm
+|> set-bottom-margin 25mm
+|> set-left-margin   20mm
+|> set-right-margin  20mm`);と記述します。}
+      >
+      +section {多段組} <
+        +p{多段組の設定では段数と段間の長さを指定することができます。段数は\sci(`set-multicolumn : int -> setting -> setting`);関数で指定することができます。段間の長さは\sci(`set-columnsep : length -> setting -> setting`);関数で指定します。例えば\listing {
+          * 3段組み
+          * 段の間は5mm
+        }という体裁にしたい場合は\sc(`default-setting
+|> set-multicolumn 3
+|> set-columnsep 5mm`);と記述します。}
+      >
+      +section {フォント設定} <
+        +p{このクラスファイルで設定するフォントは\listing{
+          * 本文用フォント
+            ** かな・漢字用
+            ** ラテン文字用
+          * タイトル用フォント
+            ** かな・漢字用
+            ** ラテン文字用
+        }の4種類です。タイトル用フォントはタイトルや節見出しに使われます。それぞれ\listing {
+          * \sci(`set-text-font-cjk   : (string * float * float) -> setting -> setting`);
+          * \sci(`set-text-font-latin : (string * float * float) -> setting -> setting`);
+          * \sci(`set-headline-font-cjk   : (string * float * float) -> setting -> setting`);
+          * \sci(`set-headline-font-latin : (string * float * float) -> setting -> setting`);
+        }の関数で指定します。例えば本文用のラテン文字用フォントを\sci(`Junicode`);にしようと思った場合は\sc(```default-setting
+|> set-text-font-latin (`Junicode`, 1.0, 0.0);```);とします。このタプルの情報は先頭からそれぞれ\enumerate{
+          * フォント登録名（各フォントインストール用ライブラリのドキュメントを参照してください）
+          * 文字の拡大率
+          * 文字の上下の補正値
+        }です。}
+      >
+      +section {フォントサイズ・行間などの設定} <
+        +p{フォントサイズは本文のフォントサイズ及び各見出しへの倍率を指定できます。}
+        +p{本文のフォントサイズは\sci(`set-normal-font-size : length -> setting -> setting`);関数で指定します。}
+        +p{各種倍率設定では本文のフォントサイズを基準とし、以下の項目について設定できます。\listing {
+          * 行間の長さ：\sci(`set-leading-ratio : float -> setting -> setting`);
+          * 段落の上に入るスペース：\sci(`set-paragraph-margin-top-ratio : float -> setting -> setting`);
+          * 段落の下に入るスペース：\sci(`set-paragraph-margin-bottom-ratio : float -> setting -> setting`);
+          * タイトルのフォントサイズ：\sci(`set-title-font-size-ratio : float -> setting -> setting`);
+          * 著者名のフォントサイズ：\sci(`set-author-font-size-ratio : float -> setting -> setting`);
+          * 日付のフォントサイズ：\sci(`set-date-font-size-ratio : float -> setting -> setting`);
+          * 節見出しのフォントサイズ（節の深さに応じて倍率を変化させられます）：\sci(`set-section-font-size-ratio : (int -> float) -> setting -> setting`);
+          * 目次のフォントサイズ：\sci(`set-toc-font-size-ratio : (int -> float) -> setting -> setting`);
+          * 付録のフォントサイズ：\sci(`set-appendix-font-size-ratio : (int -> float) -> setting -> setting`);
+        }例えば\listing {
+          * 本文のフォントサイズ：10pt
+          * タイトルのフォントサイズ：18pt
+          * 一番上の節見出しのフォントサイズ：15pt
+          * 二番目の節見出しのフォントサイズ：13pt
+          * それ以下の節見出しのフォントサイズ：11.5pt
+        }という設定にしたい場合、\sc(`default-setting
+|> set-normal-font-size 10pt
+|> set-title-font-size-ratio 1.8
+|> set-section-font-size-ratio (fun n -> (
+  match n with
+  | 1 -> 1.5
+  | 2 -> 1.3
+  | _ -> 1.15
+))`);と記述すれば実現することができます。}
+      >
+      +section {各種タイトルの表示設定} <
+        +p{「目次」や「図1」といったタイトルの表示を変更することができます。簡単に変更できる項目は\listing {
+          * 目次
+          * 参考文献
+          * 図
+          * 表
+          * 節番号
+          * 節番号（目次）
+          * 付録節番号
+          * 付録節番号（目次）
+        }です。}
+        +p{目次と参考文献のタイトルはそれぞれ\listing {
+          * \sci(`set-toc-title : inline-text -> setting -> setting`);
+          * \sci(`set-bib-title : inline-text -> setting -> setting`);
+        }で設定できます。例えば目次タイトルを「Table of Contents」にし参考文献タイトルを「References」に変更したい場合は\sc(```default-setting
+|> set-toc-title {Table of Contents}
+|> set-bib-title {References}```);と記述すればよい。}
+        +p{図と表はそれぞれ\listing {
+          * \sci(`set-figure-title-fun : (int -> inline-text) -> setting -> setting`);
+          * \sci(`set-table-title-fun  : (int -> inline-text) -> setting -> setting`);
+        }で設定できます。図・表の番号を受け取り、テキストを返すようにします。例えば図番号を「Figure 1: 」のように、表番号を「Table 1: 」のようにしたい場合は\sc(```default-setting
+|> set-figure-title-fun (fun i -> (
+  let i-it = i |> arabic |> embed-string in
+  {Figure #i-it;:\ }
+))
+|> set-table-title-fun (fun i -> (
+  let i-it = i |> arabic |> embed-string in
+  {Table #i-it;:\ }
+))```);のように記述すればよい。}
+        +p{節番号と目次用節番号はそれぞれ\listing {
+          * \sci(`set-section-num-fun : (int list -> string) -> setting -> setting`);
+          * \sci(`set-toc-num-fun     : (int list -> string option) -> setting -> setting`);
+        }で設定できます。基本的には節番号のリストを受け取り、それを文字列に変換する関数を設定すれば良いです。目次用節番号の設定では、目次に表示させない場合に\sci(`None`);を返すようにするという違いがありますが、その他は共通です。例えば節見出しを深さ順に\enumerate {
+          * 第1章
+          * 1.1.
+          * 1.1.1.
+          * 1.1.1.1. （以下同様）
+        }のようにし、目次では2番目の階層までしか表示させないようにするとします。この場合には\sc(```let f lst =
+  match lst with
+  | [] -> ` `
+  | [n] -> `第` ^ arabic n ^ `章`
+  | _ -> (
+    lst
+    |> List.map arabic
+    |> List.fold-right (fun s1 s2 -> s1^`.`^s2) ` `
+  )
+
+in
+
+document (
+  default-setting
+  |> set-section-num-fun f
+  |> set-toc-num-fun (fun l -> (if List.length l > 2 then None else Some(f l)))
+) '<>```);のように設定します。付録の節番号及び目次用節番号も同様に\listing {
+          * \sci(`set-appendix-num-fun : (int list -> string) -> setting -> setting`);
+          * \sci(`set-appendix-toc-num-fun : (int list -> string option) -> setting -> setting`);
+        }で設定することができます。}
+      >
+      +section {ハイパーリンクの枠線} <
+        +p{ドキュメント内のハイパーリンク及び外部URLへのリンクに枠線を表示させることができます。この枠線はPDF閲覧時にのみ表示され、印刷時には繁栄されません。}
+        +p{設定には\listing {
+          * \sci(`set-doc-link-color : (length * color) -> setting -> setting`);
+          * \sci(`set-url-link-color : (length * color) -> setting -> setting`);
+        }という関数を用います。与える値は「枠線の太さ」と「枠線の色」の2つの情報のタプルです。例えば\listing{
+          * ドキュメント内のリンクには赤色の枠線(1pt)
+          * 外部URLへのリンクには青色の枠線(1pt)
+        }としたい場合には\sc(`default-setting
+|> set-doc-link-color (1pt, Color.red)
+|> set-url-link-color (1pt, Color.blue)`);とします。すると、ドキュメント内のリンク（脚注や図表など）の場合には図\ref(`link-color-1`);のようになり、URLの場合には図\ref(`link-color-2`);のようになります。}
+        +figure ?:(`link-color-1`) ?:(top) {ドキュメント内のリンクの枠} <
+          +image(`img/link-color-1.jpg`);
+        >
+        +figure ?:(`link-color-2`) ?:(top) {URLの枠} <
+          +image(`img/link-color-2.jpg`);
+        >
+      >
+      +section {PDF辞書情報の指定} <
+        +p{PDFのメタデータに含まれる\listing {
+          * タイトル
+          * 著者名
+          * 説明
+          * キーワード
+        }をそれぞれ指定することができます。それぞれ\listing {
+          * \sci(`set-title-str : string -> setting -> setting`);
+          * \sci(`set-author-str : string -> setting -> setting`);
+          * \sci(`set-subject : string -> setting -> setting`);
+          * \sci(`set-keywords : string list -> setting -> setting`);
+        }関数によって設定を行います。設定されない場合はタイトルと著者名が自動で補われます。}
+      >
+      +section {PDFしおり情報の制御} <
+        +p{PDFに付与されるしおり情報（ブックマーク情報）では、文書の階層構造をどこまで展開しておくかを設定することができます。\sci(`set-outline-depth : int -> setting -> setting`);という関数でその設定を変更することができます。}
+      >
+    >
+  >
+  +section {テーマ関数を使用したデザインの設定} <>
+  +section {高度なデザイン設定} <>
+  +section {このパッケージを利用したクラスファイルの作成} <>
+  +section {バグ報告・修正や機能追加の提案}<
+    +p{このパッケージは\listing {
+      * \url(`https://github.com/puripuri2100/satysfi-class-template`);
+    }というリポジトリで管理されています。}
+    +p{このパッケージはバグが存在するかもしれません。バグを発見した場合は以下のURLに報告してください。\listing {
+      * \url(`https://github.com/puripuri2100/satysfi-class-template/issues`);
+    }}
+    +p{このパッケージに対してコードの修正や機能追加の提案をしたい場合は、GitHubの機能を用いて以下のURLにプルリクエストを送ってください。\listing {
+      * \url(`https://github.com/puripuri2100/satysfi-class-template/pulls`);
+    }}
+    +p{バグ報告・修正提案・機能追加提案をお待ちしております。}
+  >
+  +section{ライセンス}<
+    +p{このパッケージとドキュメントはCC0ライセンスのもとで配布されます。}
+    +p{そのため、誰でもいつでもどのような形でも改変及び再配布が許されます。}
+  >
+>
