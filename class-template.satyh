@@ -384,7 +384,13 @@ end = struct
       in
       let num-ib = num-str |> embed-string |> read-inline ctx in
       let num-width = get-natural-width num-ib in
-      let space = fs *' 0.5 in
+      let space =
+        if string-length num-str == 0 then
+          %% 節番号が無い場合
+          0pt
+        else
+          fs *' 0.5
+      in
       let page-ib = page-num |> embed-string |> read-inline ctx in
       let title-ib = read-inline ctx title in
       let p = (num-width +' space +' indent, 0pt, 0pt, 0pt) in
