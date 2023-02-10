@@ -97,7 +97,7 @@ document (
   +thebibliography [
     bibitem `item1` {puripuri2100. "Template of SATySFi class file". \url(`https://github.com/puripuri2100/satysfi-class-template`);, accessed 2023-02-03.};
     bibitem `item2` {hoge, fuga.};
-    bibitem `item3` {hoge, fuga.};
+    bibitem ?:(`item3`) `item3` {hoge, fuga.};
     bibitem `item4` {hoge, fuga.};
   ];
 >

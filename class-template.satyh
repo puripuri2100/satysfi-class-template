@@ -104,7 +104,7 @@ module ClassTemplate : sig
   val \ref-page : [string] inline-cmd
 
   type bibitem
-  val bibitem : string -> inline-text -> bibitem
+  val bibitem : string ?-> string -> inline-text -> bibitem
   val +thebibliography : [bibitem list] block-cmd
   val \cite : [string list] inline-cmd
 
@@ -1727,15 +1727,19 @@ end = struct
 
   let-inline \url url = {\href (url) {\non-hyph(url);}}
 
-  type bibitem = string * inline-text
 
-  let bibitem key value = (key, value)
+  type bibitem = string * string * inline-text
 
   let-mutable bib-counter <- 0
+  let bibitem ?:cite-v-opt key value =
+    match cite-v-opt with
+    | Some(cite-v) -> (key, cite-v, value)
+    | None -> (
+      let () = bib-counter <- !bib-counter + 1 in
+      (key, arabic !bib-counter, value)
+    )
 
-  let bib-scheme ctx key inner =
-    let () = bib-counter <- !bib-counter + 1 in
-    let s-num = arabic !bib-counter in
+  let bib-scheme ctx key s-num inner =
     let it-num = embed-string s-num in
     let label = `bibitem:` ^ key in
     let () = register-cross-reference-num label s-num in
@@ -1757,7 +1761,7 @@ end = struct
   let-block ctx +thebibliography bibitems =
     let main =
       bibitems
-      |> List.map (fun (k, v) -> bib-scheme ctx k v)
+      |> List.map (fun (k, s-num, v) -> bib-scheme ctx k s-num v)
       |> List.fold-left (+++) block-nil
     in
     let header-text = (!config-ref)#bib-title in
