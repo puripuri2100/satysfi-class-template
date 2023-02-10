@@ -29,6 +29,7 @@ module ClassTemplate : sig
   val set-date : inline-text -> config -> config
   val set-subject : string -> config -> config
   val set-keywords : string list -> config -> config
+  val set-title-deco : (context -> bool -> (context -> block-boxes) -> (context -> block-boxes) -> (context -> block-boxes option) -> (context -> block-boxes option) -> (float * block-boxes) list) -> config -> config
   val set-show-title : bool -> config -> config
   val set-show-toc : bool -> config -> config
   val set-show-header : bool -> config -> config
@@ -133,6 +134,44 @@ end = struct
 
   let top = Top
   let here = Here
+
+  let default-title-deco ctx is-title-page title-f author-f date-f abstract-f =
+    let fs = get-font-size ctx in
+    if is-title-page then
+      let main =
+        title-f ctx +++
+        block-skip (fs *' 2.0) +++
+        author-f ctx
+      in
+      let date =
+        match date-f ctx with
+        | None -> block-nil
+        | Some(b) -> block-skip fs +++ b
+      in
+      match abstract-f ctx with
+      | None -> [(0.4, main +++ date)]
+      | Some(bb) -> [(0.4, main +++ date); (0.3, bb)]
+    else
+      let date =
+        match date-f ctx with
+        | None -> block-nil
+        | Some(b) -> block-skip 0pt +++ b
+      in
+      let abstract =
+        match abstract-f ctx with
+        | None -> block-nil
+        | Some(b) -> block-skip 0pt +++ b
+      in
+      [(
+        0.45,
+        title-f ctx +++
+        block-skip (fs *' 0.5) +++
+        author-f ctx +++
+        block-skip 0pt +++
+        date +++
+        abstract +++
+        block-skip (fs *' 1.0)
+      )]
 
 
   let default-footer ctx _ _ n =
@@ -266,6 +305,7 @@ end = struct
     date          : inline-text option;
     subject       : string option;
     keywords      : string list;
+    title-deco    : context -> bool -> (context -> block-boxes) -> (context -> block-boxes) -> (context -> block-boxes option) -> (context -> block-boxes option) -> (float * block-boxes) list;
     show-title    : bool;
     show-toc      : bool;
     show-footer   : bool;
@@ -323,6 +363,7 @@ end = struct
     date          = None;
     subject       = None;
     keywords      = [];
+    title-deco    = default-title-deco;
     show-title    = true;
     show-toc      = false;
     show-footer   = true;
@@ -421,6 +462,9 @@ end = struct
 
   let set-keywords keywords config =
     (| config with keywords = keywords; |)
+
+  let set-title-deco f config =
+    (| config with title-deco = f; |)
 
   let set-show-title show-title config =
     (| config with show-title = show-title; |)
@@ -916,99 +960,76 @@ end = struct
     let page = UserDefinedPaper(c#width-page, c#height-page) in
 
 
-    let abstract-block =
-      let ctx = make-ctx all-text-width in
-      match c#abstract with
-      | None -> block-nil
-      | Some(abstract) -> read-block ctx abstract
+    let title-block ctx =
+      let fs = font-size-title () in
+      let ctx =
+        ctx |> set-font-size fs
+            |> set-headline-font
+            |> set-paragraph-margin (fs *' (!config-ref)#leading-ratio) (fs *' (!config-ref)#leading-ratio)
+      in
+      let f it =
+        line-break false false ctx (
+          inline-fil ++ read-inline ctx it ++ inline-fil
+        )
+      in
+      c#title
+      |> List.map f
+      |> List.fold-left (+++) block-nil
     in
 
-    let bb-title =
-      let () = footnote-in-title <- true in
-      let ctx = make-ctx all-text-width in
-      if c#show-title then
-        let title-block = (
-            let fs = font-size-title () in
-            let ctx =
-              ctx |> set-font-size fs
-                  |> set-headline-font
-                  |> set-paragraph-margin (fs *' (!config-ref)#leading-ratio) (fs *' (!config-ref)#leading-ratio)
-            in
-            let f it =
-              line-break false false ctx (
-                inline-fil ++ read-inline ctx it ++ inline-fil
-              )
-            in
-            c#title
-            |> List.map f
-            |> List.fold-left (+++) block-nil
-          )
+    let author-block ctx =
+      let f it =
+        let fs = font-size-author () in
+        let ctx =
+          ctx |> set-font-size fs
+              |> set-headline-font
+              |> set-paragraph-margin (fs *' (!config-ref)#leading-ratio) (fs *' (!config-ref)#leading-ratio)
         in
-        let author-block =
-          let f it =
-            let fs = font-size-author () in
-            let ctx =
-              ctx |> set-font-size fs
-                  |> set-headline-font
-                  |> set-paragraph-margin (fs *' (!config-ref)#leading-ratio) (fs *' (!config-ref)#leading-ratio)
-            in
-            line-break false false ctx (
-              inline-fil ++ read-inline ctx it ++ inline-fil
-            )
-          in
-          c#author
-          |> List.map f
-          |> List.fold-left (+++) block-nil
-        in
-        let date-block =
-          match c#date with
-          | None -> block-nil
-          | Some(date) -> (
-            let fs = font-size-date () in
-            let ctx =
-              ctx |> set-font-size fs
-                  |> set-headline-font
-                  |> set-paragraph-margin
-                      (fs *'  (!config-ref)#paragraph-margin-top-ratio)
-                      (fs *'  (!config-ref)#paragraph-margin-bottom-ratio)
-            in
-            line-break false false ctx (
-              inline-fil ++ read-inline ctx date ++ inline-fil
-            )
-          )
-        in
-        let () = footnote-in-title <- false in
-        if c#title-page then
-          let main =
-            title-block +++
-            block-skip (font-size-normal () *' 2.0) +++
-            author-block +++
-            block-skip (font-size-normal ()) +++
-            date-block
-          in
-          let text-height =
-            c#height-page -' c#top-margin -' c#bottom-margin
-          in
-            block-skip ((text-height -' get-natural-length main) *' 0.35)
-            +++ main
-        else
-          title-block +++
-          block-skip (font-size-normal () *' 0.5) +++
-          author-block +++
-          block-skip 0pt +++
-          date-block +++
-          block-skip 0pt +++
-          abstract-block +++
-          block-skip (font-size-normal () *' 1.0)
-      else
-        block-nil
+        line-break false false ctx (
+          inline-fil ++ read-inline ctx it ++ inline-fil
+        )
+      in
+      c#author
+      |> List.map f
+      |> List.fold-left (+++) block-nil
     in
+
+    let date-block ctx =
+      match c#date with
+      | None -> None
+      | Some(date) -> (
+        let fs = font-size-date () in
+        let ctx =
+          ctx |> set-font-size fs
+              |> set-headline-font
+              |> set-paragraph-margin
+                  (fs *'  (!config-ref)#paragraph-margin-top-ratio)
+                  (fs *'  (!config-ref)#paragraph-margin-bottom-ratio)
+        in
+        Some(
+          line-break false false ctx (
+            inline-fil ++ read-inline ctx date ++ inline-fil
+          )
+        )
+      )
+    in
+
+    let abstract-block ctx =
+      match c#abstract with
+      | None -> None
+      | Some(abstract) -> Some(read-block ctx abstract)
+    in
+
+    let () = footnote-in-title <- true in
+    let title-block-lst =
+      let ctx = make-ctx all-text-width in
+      c#title-deco ctx c#title-page title-block author-block date-block abstract-block
+    in
+    let () = footnote-in-title <- false in
+
     let title-page-counter =
       if c#show-title && c#title-page then
-        if Option.is-none c#abstract then
-          1
-        else
-          2
+        List.length title-block-lst
       else
         0
     in
@@ -1031,8 +1052,15 @@ end = struct
       let ctx = make-ctx all-text-width in
       let (bb, lst) = break-float-boxes pbinfo#page-number (text-height -' top-pad) !float-boxes in
       let float-len =
-        if c#show-title && pbinfo#page-number == 1 then
-          get-natural-length bb-title
+        if c#show-title && pbinfo#page-number <= title-page-counter then
+          let title-opt = List.nth (pbinfo#page-number - 1) title-block-lst in
+          match title-opt with
+          | None -> 0pt
+          | Some(f, bb) -> (
+            let h = get-natural-length bb in
+            let space = (text-height -' h) *' f in
+            get-natural-length (block-skip space +++ bb)
+          )
         else
           get-natural-length bb
       in
@@ -1089,19 +1117,22 @@ end = struct
               let page-num-s = c#page-num page-num in
               c#header ctx pbinfo#page-number page-num page-num-s
         in
-        let float-fig =
-          if c#show-title && pbinfo#page-number == 1 then
-            bb-title
-          else if c#title-page && not (Option.is-none c#abstract) && pbinfo#page-number == 2 then
-            let h = get-natural-length abstract-block in
-            let space = (text-height -' h) *' 0.35 in
-            block-skip space +++ abstract-block
+        let float-bb =
+          if c#show-title && pbinfo#page-number <= title-page-counter then
+            let title-opt = List.nth (pbinfo#page-number - 1) title-block-lst in
+            match title-opt with
+            | None -> block-nil
+            | Some(f, bb) -> (
+              let h = get-natural-length bb in
+              let space = (text-height -' h) *' f in
+              block-skip space +++ bb
+            )
           else
             let (bb, new-float-boxes) = break-float-boxes pbinfo#page-number (text-height -' top-pad) !float-boxes in
             let () = float-boxes <- new-float-boxes in
             bb
         in
-        origin +++ float-fig
+        origin +++ float-bb
       in
       let header-origin = (c#left-margin, c#top-margin) in
       let footer =
