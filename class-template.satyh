@@ -44,6 +44,7 @@ module ClassTemplate : sig
   val set-bottom-margin : length -> config -> config
   val set-multicolumn : int -> config -> config
   val set-columnsep : length -> config -> config
+  val set-indent-length : (context -> length) -> config -> config
   val set-abstract : block-text -> config -> config
   val set-thanks-marks : string list -> config -> config
   val set-footnote-mark : inline-text -> config -> config
@@ -417,6 +418,7 @@ end = struct
     bottom-margin : length;
     multicolumn   : int;
     columnsep     : length;
+    indent-length : context -> length;
     abstract      : block-text option;
     thanks-marks  : string list;
     footnote-mark : inline-text;
@@ -465,6 +467,11 @@ end = struct
     bottom-margin = 25mm;
     multicolumn   = 1;
     columnsep     = 20pt;
+    indent-length = fun ctx -> (
+      let font-size = get-font-size ctx in
+      let (_,font-ratio-cjk,_) = get-font Kana ctx in
+      font-size *' font-ratio-cjk
+    );
     abstract      = None;
     thanks-marks  = [`*`; `†`; `‡`];
     footnote-mark = {†};
@@ -582,6 +589,9 @@ end = struct
 
   let set-columnsep columnsep config =
     (| config with columnsep = columnsep; |)
+
+  let set-indent-length f config =
+    (| config with indent-length = f; |)
 
   let set-abstract abstract config =
     (| config with abstract = Some(abstract); |)
@@ -1144,9 +1154,8 @@ end = struct
 
 
   let indent ctx =
-    let font-size = get-font-size ctx in
-    let (_,font-ratio-cjk,_) = get-font Kana ctx in
-    inline-skip (font-size *' font-ratio-cjk)
+    let len = (!config-ref)#indent-length ctx in
+    inline-skip len
 
   let-block ctx +p it =
     let ib = read-inline ctx it in
