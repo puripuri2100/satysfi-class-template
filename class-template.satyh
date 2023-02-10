@@ -358,8 +358,8 @@ end = struct
     );
     introduction-header   = fun _ _ _ _ -> block-nil;
     introduction-footer   = default-footer;
-    thanks-marks  = [`*`; `†`; `‡`];
-    footnote-mark = {†};
+    thanks-marks  = [`†`; `‡`; `*`];
+    footnote-mark = {\ \*};
     font-info     = default-font;
     toc-title     = {目次};
     bib-title     = {参考文献};
