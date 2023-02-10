@@ -1,10 +1,13 @@
 @require: math
 @require: color
-@require: list
 @require: annot
 @require: vdecoset
 @require: option
 @require: pervasives
+@require: base/list-ext
+@require: base/int
+@require: base/float
+@require: num-conversion/num-conversion
 
 module ClassTemplate : sig
 
@@ -30,6 +33,9 @@ module ClassTemplate : sig
   val set-show-toc : bool -> config -> config
   val set-show-header : bool -> config -> config
   val set-show-footer : bool -> config -> config
+  val set-page-num : (int -> string) -> config -> config
+  val set-header : (context -> int -> int -> string -> block-boxes) -> config -> config
+  val set-footer : (context -> int -> int -> string -> block-boxes) -> config -> config
   val set-title-page : bool -> config -> config
   val set-bib-page : bool -> config -> config
   val set-normal-font-size : length -> config -> config
@@ -47,6 +53,9 @@ module ClassTemplate : sig
   val set-indent-length : (context -> length) -> config -> config
   val set-abstract : block-text -> config -> config
   val set-introduction : block-text -> config -> config
+  val set-introduction-page-num : (int -> string) -> config -> config
+  val set-introduction-header : (context -> int -> int -> string -> block-boxes) -> config -> config
+  val set-introduction-footer : (context -> int -> int -> string -> block-boxes) -> config -> config
   val set-thanks-marks : string list -> config -> config
   val set-footnote-mark : inline-text -> config -> config
   val set-text-font-cjk   : (string * float * float) -> config -> config
@@ -63,13 +72,16 @@ module ClassTemplate : sig
   val set-toc-num-fun :  (int list -> string option) -> config -> config
   val set-toc-headline-font-depth : int -> config -> config
   val set-toc-font-size-ratio : (int -> float) -> config -> config
-  val set-toc-deco : (context -> string -> int -> string option -> inline-text -> block-boxes) -> config -> config
+  val set-toc-deco : (context -> int -> string option -> inline-text -> string -> block-boxes) -> config -> config
   val set-toc-title-deco : (context -> inline-text -> block-boxes) -> config -> config
   val set-appendix-num-fun : (int list -> string) -> config -> config
   val set-appendix-font-size-ratio : (int -> float) -> config -> config
   val set-appendix-title-deco : (context -> int -> inline-boxes -> inline-boxes -> block-boxes) -> config -> config
   val set-appendix-toc-num-fun : (int list -> string option) -> config -> config
 
+
+  val ignore-header-footer-inline : unit -> inline-boxes
+  val ignore-header-footer-block : unit -> block-boxes
 
   val +abstract : [inline-text?; block-text] block-cmd
 
@@ -99,68 +111,6 @@ module ClassTemplate : sig
 
 end = struct
 
-  % 補助関数
-  let string2int str =
-    let clst =
-      str
-      |> string-explode
-    in
-    let-rec sub n cs =
-      match cs with
-      | [] -> 0
-      | c::xs -> (
-        let i =
-          if 0x30 <= c && c <= 0x39 then
-            c - 0x30
-          else
-            abort-with-message (`parse error : `# ^ string-unexplode [c] ^ `(` ^ arabic c ^ #`) in `# ^ str)
-        in
-        i * n + sub (n * 10) xs
-      )
-    in
-    match clst with
-    | [] -> 0
-    | 0x2D::cs -> (sub 1 (List.reverse cs)) * -1
-    | _ -> sub 1 (List.reverse clst)
-
-  let string2float str =
-    let clst =
-      str
-      |> string-explode
-    in
-    % n = 合計
-    % m = 10^現在の桁
-    % o = 小数点以下の桁数
-    % b = 小数点が既にあるかどうかのフラグ
-    let-rec sub n m o b cs =
-      match cs with
-      | [] -> if b then (float n) /. (float o) else abort-with-message (`parse error : no dots `# ^ str)
-      | 0x2E::xs -> (
-        if b then
-          abort-with-message (`parse error : too many dots `# ^ str)
-        else
-          sub n m o true xs
-      )
-      | c::xs -> (
-        let i =
-          if 0x30 <= c && c <= 0x39 then
-            c - 0x30
-          else
-            abort-with-message (`parse error : `# ^ string-unexplode [c] ^ `(` ^ arabic c ^ #`) in `# ^ str)
-        in
-        if b then
-          sub (n + m * i) (m * 10) o true xs
-        else
-          sub (n + m * i) (m * 10) (o + 1) false xs
-      )
-    in
-    match clst with
-    | [] -> 0.0
-    | 0x2D::cs -> (sub 1 1 1 false (List.reverse cs)) *. -1.0
-    | _ -> sub 1 1 1 false (List.reverse clst)
-
-
-
   let-rec repeat-inline n ib =
     if n <= 0 then
       inline-nil
@@ -176,129 +126,6 @@ end = struct
     repeat-inline n ib
 
 
-    % Introductionの開始する位置を記録する
-    let register-introduction-start-page () =
-      hook-page-break-block (fun pbinfo _ -> register-cross-reference `introduction-start-page` (arabic pbinfo#page-number))
-
-    % ページ番号を開始する位置を取得する
-    let get-introduction-start-page () =
-      match get-cross-reference `introduction-start-page` with
-      | None -> 1
-      | Some (page-num) -> string2int page-num
-
-
-    % ページ番号を開始する位置を記録する
-    let register-start-page () =
-      hook-page-break-block (fun pbinfo _ -> register-cross-reference `start-page` (arabic pbinfo#page-number))
-
-    % ページ番号を開始する位置を取得する
-    let get-start-page () =
-      match get-cross-reference `start-page` with
-      | None -> 1
-      | Some (page-num) -> string2int page-num
-
-    % unit型
-    % satysfi-auxファイルにkey-value形式で書きだされる
-    % (label ^ `:num`)がkeyでtitleがvalue
-    let register-cross-reference-num label title =
-      register-cross-reference (label ^ `:num`) title
-
-
-    % inline-boxes型
-    % satysfi-auxファイルにkey-value形式で書きだすが、
-    % ページ番号を取得するためにblock-nilと同じ挙動をするblock-boxes
-    % をフックとして埋め込む必要がある
-    let register-cross-reference-page label =
-      let start-page = get-start-page () in
-      hook-page-break (fun pbinfo _ -> register-cross-reference (label ^ `:page`) (arabic (pbinfo#page-number - start-page + 1)))
-
-
-    % block-boxes型
-    % satysfi-auxファイルにkey-value形式で書きだすが、
-    % ページ番号を取得するためにblock-nilと同じ挙動をするblock-boxes
-    % をフックとして埋め込む必要がある
-    let register-cross-reference-page-block label =
-      let start-page = get-start-page () in
-      hook-page-break-block (fun pbinfo _ -> register-cross-reference (label ^ `:page`) (arabic (pbinfo#page-number - start-page + 1)))
-
-
-    let get-column-num x shifts =
-      let-rec sub hook-x n shifts =
-        match shifts with
-        | [] -> n
-        | x::xs -> (
-          if hook-x <' x then
-            n
-          else
-            sub hook-x (n + 1) xs
-        )
-      in
-      sub x 1 shifts
-
-    let register-cross-reference-column label shifts =
-      let start-page = get-start-page () in
-      let column-size = List.length shifts + 1 in
-      let column-num page-num x =
-        let p = page-num - start-page in
-        p * column-size + (get-column-num x shifts)
-      in
-      hook-page-break (fun pbinfo (x, _) -> (
-        let c = column-num pbinfo#page-number x in
-        register-cross-reference (label ^ `:column`) (arabic c)
-      ))
-
-    let register-cross-reference-column-block label shifts =
-      let start-page = get-start-page () in
-      let column-size = List.length shifts + 1 in
-      let column-num page-num x =
-        let p = page-num - start-page in
-        p * column-size + (get-column-num x shifts)
-      in
-      hook-page-break-block (fun pbinfo (x, _) -> (
-        let c = column-num pbinfo#page-number x in
-        register-cross-reference (label ^ `:column`) (arabic c)
-      ))
-
-
-  % 取得用関数 返り値はどちらもstring型
-  % satysfi-auxファイルからkeyに合致するvalueを取得する
-  % 対応するものが無い場合は`?`を返すようにする
-  % そうすれば「これについては?ページ参照し」などのように、
-  % 一応自然に見える（というかLaTeXの多くのクラスファイルがそういう挙動をするはず）
-  let get-cross-reference-num label =
-    match get-cross-reference (label ^ `:num`) with
-      | None -> `?`
-      | Some (label) -> label
-
-
-  let get-cross-reference-page label =
-    match get-cross-reference (label ^ `:page`) with
-      | None -> `?`
-      | Some (label) -> label
-
-  let get-cross-reference-column label =
-    match get-cross-reference (label ^ `:column`) with
-      | None -> None
-      | Some (s) -> Some(string2int s)
-
-
-  let register-cross-reference-point label =
-    hook-page-break (fun _ (x,y) -> (
-      let x-str = show-float (x /' 1pt) in
-      let y-str = show-float (y /' 1pt) in
-      let () = register-cross-reference (`point:`^label^`:x`) x-str in
-      let () = register-cross-reference (`point:`^label^`:y`) y-str in
-      ()
-    ))
-
-  let get-cross-reference-point label =
-    let x-opt = get-cross-reference (`point:`^label^`:x`) in
-    let y-opt = get-cross-reference (`point:`^label^`:y`) in
-    match (x-opt, y-opt) with
-    | (Some(sx), Some(sy)) -> Some(1pt *' (string2float sx), 1pt *' (string2float sy))
-    | _ -> None
-
-
 
   type position =
     | Top
@@ -306,6 +133,16 @@ end = struct
 
   let top = Top
   let here = Here
+
+
+  let default-footer ctx _ _ n =
+    let n =
+      n
+      |> embed-string
+      |> read-inline ctx
+    in
+    block-skip (get-font-size ctx) +++
+    line-break true true ctx (inline-fil ++ n ++ inline-fil)
 
 
   type font-info = (|
@@ -368,12 +205,11 @@ end = struct
     ))
 
 
-  let default-toc-deco ctx label depth num-str-opt title =
+  let default-toc-deco ctx depth num-str-opt title page-num =
     match num-str-opt with
     | None -> block-nil
     | Some(num-str) -> (
       let fs = get-font-size ctx in
-      let page-num = get-cross-reference-page label in
       let (fs, indent) =
         match depth with
         | 1 -> (fs *' 1.3, fs *' 1.3)
@@ -434,6 +270,9 @@ end = struct
     show-toc      : bool;
     show-footer   : bool;
     show-header   : bool;
+    page-num      : int -> string;
+    header        : context -> int -> int -> string -> block-boxes;
+    footer        : context -> int -> int -> string -> block-boxes;
     title-page    : bool;
     bib-page      : bool;
     normal-font-size : length;
@@ -451,6 +290,9 @@ end = struct
     indent-length : context -> length;
     abstract      : block-text option;
     introduction  : block-text option;
+    introduction-page-num : int -> string;
+    introduction-header   : context -> int -> int -> string -> block-boxes;
+    introduction-footer   : context -> int -> int -> string -> block-boxes;
     thanks-marks  : string list;
     footnote-mark : inline-text;
     font-info     : font-info;
@@ -464,7 +306,7 @@ end = struct
     toc-num-fun   : int list -> string option;
     toc-headline-font-depth : int;
     toc-font-size-ratio : int -> float;
-    toc-deco      : context -> string -> int -> string option -> inline-text -> block-boxes;
+    toc-deco       : context -> int -> string option -> inline-text -> string -> block-boxes;
     toc-title-deco : context -> inline-text -> block-boxes;
     appendix-num-fun : int list -> string;
     appendix-font-size-ratio : int -> float;
@@ -485,6 +327,9 @@ end = struct
     show-toc      = false;
     show-footer   = true;
     show-header   = true;
+    page-num      = arabic;
+    header        = fun _ _ _ _ -> block-nil;
+    footer        = default-footer;
     title-page    = false;
     bib-page      = false;
     normal-font-size = 12pt;
@@ -506,6 +351,13 @@ end = struct
     );
     abstract      = None;
     introduction  = None;
+    introduction-page-num = fun i -> (
+      match NumConversion.to-roman-lower i with
+      | Some(s) -> s
+      | None -> `?`
+    );
+    introduction-header   = fun _ _ _ _ -> block-nil;
+    introduction-footer   = default-footer;
     thanks-marks  = [`*`; `†`; `‡`];
     footnote-mark = {†};
     font-info     = default-font;
@@ -582,6 +434,15 @@ end = struct
   let set-show-footer show-footer config =
     (| config with show-footer = show-footer; |)
 
+  let set-page-num f config =
+    (| config with page-num = f; |)
+
+  let set-header f config =
+    (| config with header = f; |)
+
+  let set-footer f config =
+    (| config with footer = f; |)
+
   let set-title-page title-page config =
     (| config with title-page = title-page; |)
 
@@ -632,6 +493,15 @@ end = struct
 
   let set-introduction introduction config =
     (| config with introduction = Some(introduction); |)
+
+  let set-introduction-page-num f config =
+    (| config with introduction-page-num = f; |)
+
+  let set-introduction-header f config =
+    (| config with introduction-header = f; |)
+
+  let set-introduction-footer f config =
+    (| config with introduction-footer = f; |)
 
   let set-thanks-marks marks config =
       (| config with thanks-marks = marks;|)
@@ -755,6 +625,157 @@ end = struct
       |> set-min-gap-of-lines (fs *' (!config-ref)#leading-ratio)
       %|> set-min-paragraph-ascender-and-descender 0pt 0pt
 
+      % Introductionの開始する位置を記録する
+      let register-introduction-start-page () =
+        hook-page-break-block (fun pbinfo _ -> (
+          register-cross-reference `introduction-start-page` (arabic pbinfo#page-number)
+        ))
+  
+      % ページ番号を開始する位置を取得する
+      let get-introduction-start-page () =
+        match get-cross-reference `introduction-start-page` with
+        | None -> 1
+        | Some (page-num) -> Int.of-string page-num
+  
+  
+      % ページ番号を開始する位置を記録する
+      let register-start-page () =
+        hook-page-break-block (fun pbinfo _ -> (
+          register-cross-reference `start-page` (arabic pbinfo#page-number)
+        ))
+  
+      % ページ番号を開始する位置を取得する
+      let get-start-page () =
+        match get-cross-reference `start-page` with
+        | None -> 1
+        | Some (page-num) -> Int.of-string page-num
+  
+      % unit型
+      % satysfi-auxファイルにkey-value形式で書きだされる
+      % (label ^ `:num`)がkeyでtitleがvalue
+      let register-cross-reference-num label title =
+        register-cross-reference (label ^ `:num`) title
+  
+  
+      % inline-boxes型
+      % satysfi-auxファイルにkey-value形式で書きだすが、
+      % ページ番号を取得するためにblock-nilと同じ挙動をするblock-boxes
+      % をフックとして埋め込む必要がある
+      let register-cross-reference-page label =
+        hook-page-break (fun pbinfo _ -> (
+          register-cross-reference (label ^ `:page`) (arabic pbinfo#page-number)
+        ))
+  
+  
+      % block-boxes型
+      % satysfi-auxファイルにkey-value形式で書きだすが、
+      % ページ番号を取得するためにblock-nilと同じ挙動をするblock-boxes
+      % をフックとして埋め込む必要がある
+      let register-cross-reference-page-block label =
+        hook-page-break-block (fun pbinfo _ -> (
+          register-cross-reference (label ^ `:page`) (arabic pbinfo#page-number)
+        ))
+  
+  
+      let get-column-num x shifts =
+        let-rec sub hook-x n shifts =
+          match shifts with
+          | [] -> n
+          | x::xs -> (
+            if hook-x <' x then
+              n
+            else
+              sub hook-x (n + 1) xs
+          )
+        in
+        sub x 1 shifts
+  
+      let register-cross-reference-column label shifts =
+        let column-size = List.length shifts + 1 in
+        let column-num page-num x =
+          page-num * column-size + (get-column-num x shifts)
+        in
+        hook-page-break (fun pbinfo (x, _) -> (
+          let c = column-num pbinfo#page-number x in
+          register-cross-reference (label ^ `:column`) (arabic c)
+        ))
+  
+      let register-cross-reference-column-block label shifts =
+        let column-size = List.length shifts + 1 in
+        let column-num page-num x =
+          page-num * column-size + (get-column-num x shifts)
+        in
+        hook-page-break-block (fun pbinfo (x, _) -> (
+          let c = column-num pbinfo#page-number x in
+          register-cross-reference (label ^ `:column`) (arabic c)
+        ))
+  
+  
+    % 取得用関数 返り値はどちらもstring型
+    % satysfi-auxファイルからkeyに合致するvalueを取得する
+    % 対応するものが無い場合は`?`を返すようにする
+    % そうすれば「これについては?ページ参照し」などのように、
+    % 一応自然に見える（というかLaTeXの多くのクラスファイルがそういう挙動をするはず）
+    let get-cross-reference-num label =
+      match get-cross-reference (label ^ `:num`) with
+        | None -> `?`
+        | Some (label) -> label
+  
+  
+    let get-cross-reference-page label = get-cross-reference (label ^ `:page`)
+  
+    let get-cross-reference-page-fix label =
+      let introduction-start-page = get-introduction-start-page () in
+      let start-page = get-start-page () in
+      let s =
+        match get-cross-reference-page label with
+        | None -> `?`
+        | Some(s) -> (
+          let n = Int.of-string s in
+          if n < introduction-start-page then
+            ` `
+          else
+            if n < start-page then
+              (!config-ref)#introduction-page-num (n - introduction-start-page + 1)
+            else
+              (!config-ref)#page-num (n - introduction-start-page + 1)
+        )
+      in
+      s
+  
+    let get-cross-reference-column label =
+      match get-cross-reference (label ^ `:column`) with
+        | None -> None
+        | Some (s) -> Some(Int.of-string s)
+  
+  
+    let register-cross-reference-point label =
+      hook-page-break (fun _ (x,y) -> (
+        let x-str = show-float (x /' 1pt) in
+        let y-str = show-float (y /' 1pt) in
+        let () = register-cross-reference (`point:`^label^`:x`) x-str in
+        let () = register-cross-reference (`point:`^label^`:y`) y-str in
+        ()
+      ))
+  
+    let get-cross-reference-point label =
+      let x-opt = get-cross-reference (`point:`^label^`:x`) in
+      let y-opt = get-cross-reference (`point:`^label^`:y`) in
+      match (x-opt, y-opt) with
+      | (Some(sx), Some(sy)) -> (
+        let x =
+          match Float.of-string-opt sx with
+          | Some(x) -> x
+          | None -> abort-with-message (`parse error: `# ^ sx)
+        in
+        let y =
+          match Float.of-string-opt sy with
+          | Some(y) -> y
+          | None -> abort-with-message (`parse error: `# ^ sy)
+        in
+        Some(1pt *' x, 1pt *' y)
+      )
+      | _ -> None
 
   % ハイパーリンクのキー登録とキー取得
 
@@ -784,8 +805,11 @@ end = struct
 
 
   let-inline ctx \ref-page label =
-    doc-hyper-link label
-      (read-inline ctx (embed-string (get-cross-reference-page label)))
+    label
+    |> get-cross-reference-page-fix
+    |> embed-string
+    |> read-inline ctx
+    |> doc-hyper-link label
 
 
   let-rec break-page column =
@@ -793,6 +817,26 @@ end = struct
       clear-page
     else
       clear-page +++ break-page (column - 1)
+
+
+  let-mutable ignore-header-footer-lst <- []
+
+  let ignore-header-footer-inline () =
+    hook-page-break (fun pbinfo _ -> (
+      ignore-header-footer-lst <- pbinfo#page-number :: !ignore-header-footer-lst
+    ))
+
+  let ignore-header-footer-block () =
+    hook-page-break-block (fun pbinfo _ -> (
+      ignore-header-footer-lst <- pbinfo#page-number :: !ignore-header-footer-lst
+    ))
+
+
+  let-rec break-page-n n column =
+    if n == 0 then
+      block-nil
+    else
+      break-page column +++ break-page-n (n - 1) column
 
 
   let-mutable toc-ref <- []
@@ -807,7 +851,6 @@ end = struct
   % 出力したいblock-boxesとそれが入力されたページ番号の組のリスト
   let-mutable float-boxes <- []
   let-mutable is-last-page <- false
-  let-mutable now-page-num <- 0
 
   % 脚注関係のフラグ
   let-mutable is-first-footnote <- true
@@ -884,7 +927,6 @@ end = struct
       let () = footnote-in-title <- true in
       let ctx = make-ctx all-text-width in
       if c#show-title then
-        % TODO: タイトルを作成する
         let title-block = (
             let fs = font-size-title () in
             let ctx =
@@ -961,22 +1003,32 @@ end = struct
       else
         block-nil
     in
+    let title-page-counter =
+      if c#show-title && c#title-page then
+        if Option.is-none c#abstract then
+          1
+        else
+          2
+      else
+        0
+    in
 
     % 参照系を確定させるために早めに評価する
     let introduction-opt =
       match c#introduction with
       | None -> None
-      | Some(bt) -> Some(read-block ctx bt)
+      | Some(bt) -> (
+        let bb = read-block ctx bt in
+        Some(bb)
+      )
     in
-    let bb-main = read-block ctx main in
+    let bb-main =
+      read-block ctx main
+    in
 
     % コンテンツを表示させる部分の指定
     let pagecontf pbinfo =
       let ctx = make-ctx all-text-width in
-      let start-page = get-start-page () in
-      let () =
-        now-page-num <- pbinfo#page-number - start-page + 1
-      in
       let (bb, lst) = break-float-boxes pbinfo#page-number (text-height -' top-pad) !float-boxes in
       let float-len =
         if c#show-title && pbinfo#page-number == 1 then
@@ -997,33 +1049,77 @@ end = struct
     in
     % ヘッダーとフッターの設定
     let pagepartsf pbinfo =
+      let introduction-start-page = get-introduction-start-page () in
       let start-page = get-start-page () in
       let ctx = make-ctx all-text-width in
-      let page-num = !now-page-num |> arabic |> embed-string in
+      let page-num =
+        if pbinfo#page-number < introduction-start-page then
+          pbinfo#page-number
+        else
+          if pbinfo#page-number < start-page then
+            pbinfo#page-number - introduction-start-page + 1
+          else
+            pbinfo#page-number - start-page + 1
+      in
+      let page-num-s =
+        if pbinfo#page-number < introduction-start-page then
+          ` `
+        else
+          if pbinfo#page-number < start-page then
+            (!config-ref)#introduction-page-num page-num
+          else
+            (!config-ref)#page-num page-num
+      in
       let ctx = set-paragraph-margin 0pt 0pt ctx in
       let header =
-        if c#show-title && pbinfo#page-number == 1 then
-          bb-title
-        else if c#title-page && not (Option.is-none c#abstract) && pbinfo#page-number == 2 then
-          let h = get-natural-length abstract-block in
-          let space = (text-height -' h) *' 0.35 in
-          block-skip space +++ abstract-block
-        else
-          let (bb, new-float-boxes) = break-float-boxes pbinfo#page-number (text-height -' top-pad) !float-boxes in
-          let () = float-boxes <- new-float-boxes in
-          bb
+        let origin =
+          if
+            List.any (fun i -> i == pbinfo#page-number) !ignore-header-footer-lst
+            ||
+            not c#show-header
+            ||
+            pbinfo#page-number < introduction-start-page
+          then
+            block-nil
+          else
+            if pbinfo#page-number < start-page then
+              let page-num-s = c#introduction-page-num page-num in
+              c#introduction-header ctx pbinfo#page-number page-num page-num-s
+            else
+              let page-num-s = c#page-num page-num in
+              c#header ctx pbinfo#page-number page-num page-num-s
+        in
+        let float-fig =
+          if c#show-title && pbinfo#page-number == 1 then
+            bb-title
+          else if c#title-page && not (Option.is-none c#abstract) && pbinfo#page-number == 2 then
+            let h = get-natural-length abstract-block in
+            let space = (text-height -' h) *' 0.35 in
+            block-skip space +++ abstract-block
+          else
+            let (bb, new-float-boxes) = break-float-boxes pbinfo#page-number (text-height -' top-pad) !float-boxes in
+            let () = float-boxes <- new-float-boxes in
+            bb
+        in
+        origin +++ float-fig
       in
       let header-origin = (c#left-margin, c#top-margin) in
       let footer =
-        if pbinfo#page-number < start-page then
+        if
+          List.any (fun i -> i == pbinfo#page-number) !ignore-header-footer-lst
+          ||
+          not c#show-footer
+          ||
+          pbinfo#page-number < introduction-start-page
+        then
           block-nil
         else
-          if c#show-footer then
-            let footer-main = line-break true true ctx (inline-fil ++ (read-inline ctx {#page-num;}) ++ inline-fil)
-            in
-              block-skip (c#bottom-margin *' 0.2) +++ footer-main
+          if pbinfo#page-number < start-page then
+            let page-num-s = c#introduction-page-num page-num in
+            c#introduction-footer ctx pbinfo#page-number page-num page-num-s
           else
-            block-nil
+            let page-num-s = c#page-num page-num in
+            c#footer ctx pbinfo#page-number page-num page-num-s
       in
       let footer-origin = (c#left-margin, c#height-page -' c#bottom-margin) in
       (|
@@ -1077,7 +1173,8 @@ end = struct
                 |> set-leading (fs *' c#leading-ratio)
                 |> set-paragraph-margin (fs *' c#paragraph-margin-top-ratio) (fs *' c#paragraph-margin-bottom-ratio)
           in
-          c#toc-deco ctx label depth sec-num-str-opt title-it
+          let page-num = get-cross-reference-page-fix label in
+          c#toc-deco ctx depth sec-num-str-opt title-it page-num
         in
         let toc-main =
           !toc-ref
@@ -1119,14 +1216,24 @@ end = struct
       |> line-break true true ctx
     in
     let bb-main =
-      if c#title-page then
-        if c#show-title && not (Option.is-none c#abstract) then
-          (break-page c#multicolumn) +++ (break-page c#multicolumn) +++
-            register-start-page () +++ bb-toc +++ bb-main
+      let hook1 = register-introduction-start-page () in
+      let hook2 = register-start-page () in
+      let plus-new-pages =
+        break-page-n title-page-counter c#multicolumn
+      in
+      let introduction-bb =
+        match introduction-opt with
+        | Some(bb) -> bb
+        | None -> block-nil
+      in
+      let toc-before-break =
+        if c#show-title && c#title-page then
+          break-page c#multicolumn
         else
-          (break-page c#multicolumn) +++ register-start-page () +++ bb-toc +++ bb-main
-      else
-        register-start-page () +++ bb-toc +++ bb-main
+          block-nil
+      in
+      plus-new-pages +++ hook1 +++ introduction-bb +++
+        toc-before-break +++ hook2 +++ bb-toc +++ bb-main
     in
     let doc-main = page-break-multicolumn page seps columnhookf columnendhookf pagecontf pagepartsf (bb-thanks +++ bb-main +++ bb-last) in
 
@@ -1222,7 +1329,7 @@ end = struct
     block-nil
 
 
-  let section-title-format ctx is-omit-num sec-num-lst depth label-opt is-omit-num outline-title-opt title =
+  let section-title-format ctx is-omit-num sec-num-lst depth label is-omit-num outline-title-opt title =
     let title-ctx =
       let font-size =
         if !is-appendix then
@@ -1256,11 +1363,6 @@ end = struct
         else
           (!config-ref)#section-num-fun sec-num-lst
     in
-    let label =
-      match label-opt with
-      | Some(s) -> s
-      | None -> `sec:` ^ num
-    in
     let num =
       if is-omit-num then
         ` `
@@ -1292,7 +1394,14 @@ end = struct
 
   let-mutable is-omit-num-ref <- false
   let-mutable depth-ref <- 0
+  let-mutable section-label-counter <- 0
   let-block ctx +section ?:label-opt ?:is-omit-num-opt ?:outline-title-opt title inner =
+    let () = section-label-counter <- !section-label-counter + 1 in
+    let label =
+      match label-opt with
+      | Some(label) -> label
+      | None -> `sec:` ^ (arabic !section-label-counter)
+    in
     let old-depth = !depth-ref in
     let () = depth-ref <- !depth-ref + 1 in
     let (old-is-omit-num, is-omit-num) =
@@ -1322,7 +1431,7 @@ end = struct
         (old-sec-num-lst, old-sec-num)
     in
     let (num-ib, title-ib) =
-      section-title-format ctx is-omit-num (List.reverse !sec-num-lst) !depth-ref label-opt is-omit-num outline-title-opt title
+      section-title-format ctx is-omit-num (List.reverse !sec-num-lst) !depth-ref label is-omit-num outline-title-opt title
     in
     let title-ctx =
       ctx |> set-paragraph-margin (font-size-normal () *' 2.0) (font-size-normal () *' 1.5)

@@ -19,11 +19,11 @@ document (
   |> set-paragraph-margin-top-ratio 1.5
   |> set-paragraph-margin-bottom-ratio 0.5
   |> set-table-title-fun (fun i -> (let i = i |> arabic |> embed-string in {Table\ #i;:\ }))
-  %|> set-introduction '<
-  %  +section ?* ?:(true) {はじめに} <
-  %    +p{はじめにです}
-  %  >
-  %>
+  |> set-introduction '<
+    +section ?* ?:(true) {はじめに} <
+      +p{はじめにです}
+    >
+  >
 ) '<
   +section {タイトル} <
     +p{p}
