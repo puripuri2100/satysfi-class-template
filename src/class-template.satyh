@@ -32,7 +32,7 @@ module ClassTemplate : sig
   val set-title-font-size-ratio : float -> setting -> setting
   val set-author-font-size-ratio : float -> setting -> setting
   val set-date-font-size-ratio : float -> setting -> setting
-  val set-title-deco : (context -> bool -> (context -> block-boxes) -> (context -> block-boxes) -> (context -> block-boxes option) -> (context -> block-boxes option) -> (float * block-boxes) list) -> setting -> setting
+  val set-title-deco : (context -> bool -> (context -> block-boxes) -> (context -> block-boxes) -> (context -> block-boxes) option -> (context -> block-boxes) option -> (float * block-boxes) list) -> setting -> setting
   val set-show-title : bool -> setting -> setting
   val set-show-toc : bool -> setting -> setting
   val set-show-header : bool -> setting -> setting
@@ -151,7 +151,7 @@ end = struct
   let top = Top
   let here = Here
 
-  let default-title-deco ctx is-title-page title-f author-f date-f abstract-f =
+  let default-title-deco ctx is-title-page title-f author-f date-f-opt abstract-f-opt =
     let fs = get-font-size ctx in
     if is-title-page then
       let main =
@@ -160,23 +160,23 @@ end = struct
         author-f ctx
       in
       let date =
-        match date-f ctx with
+        match date-f-opt with
         | None -> block-nil
-        | Some(b) -> block-skip fs +++ b
+        | Some(f) -> block-skip fs +++ f ctx
       in
-      match abstract-f ctx with
+      match abstract-f-opt with
       | None -> [(0.4, main +++ date)]
-      | Some(bb) -> [(0.4, main +++ date); (0.3, bb)]
+      | Some(f) -> [(0.4, main +++ date); (0.3, f ctx)]
     else
       let date =
-        match date-f ctx with
+        match date-f-opt with
         | None -> block-nil
-        | Some(b) -> block-skip fs +++ b
+        | Some(f) -> block-skip fs +++ f ctx
       in
       let abstract =
-        match abstract-f ctx with
+        match abstract-f-opt with
         | None -> block-nil
-        | Some(b) -> block-skip fs +++ b
+        | Some(f) -> block-skip fs +++ f ctx
       in
       [(
         0.45,
@@ -329,7 +329,7 @@ end = struct
     title-font-size-ratio  : float;
     author-font-size-ratio : float;
     date-font-size-ratio   : float;
-    title-deco    : context -> bool -> (context -> block-boxes) -> (context -> block-boxes) -> (context -> block-boxes option) -> (context -> block-boxes option) -> (float * block-boxes) list;
+    title-deco    : context -> bool -> (context -> block-boxes) -> (context -> block-boxes) -> (context -> block-boxes) option -> (context -> block-boxes) option -> (float * block-boxes) list;
     show-title    : bool;
     show-toc      : bool;
     show-footer   : bool;
@@ -1063,30 +1063,29 @@ end = struct
       |> List.fold-left (+++) block-nil
     in
 
-    let date-block ctx =
-      let fs = font-size-normal () *' (!setting-ref)#date-font-size-ratio in
+    let date-block =
       match s#date with
       | None -> None
-      | Some(date) -> (
-        let ctx =
-          ctx |> set-font-size fs
-              |> set-headline-font
-              |> set-paragraph-margin
-                  (fs *'  (!setting-ref)#paragraph-margin-top-ratio)
-                  (fs *'  (!setting-ref)#paragraph-margin-bottom-ratio)
-        in
-        Some(
+      | Some(date) ->
+        Some(fun ctx -> (
+          let fs = font-size-normal () *' (!setting-ref)#date-font-size-ratio in
+          let ctx =
+            ctx |> set-font-size fs
+                |> set-headline-font
+                |> set-paragraph-margin
+                    (fs *'  (!setting-ref)#paragraph-margin-top-ratio)
+                    (fs *'  (!setting-ref)#paragraph-margin-bottom-ratio)
+          in
           line-break false false ctx (
             inline-fil ++ read-inline ctx date ++ inline-fil
           )
-        )
-      )
+        ))
     in
 
-    let abstract-block ctx =
+    let abstract-block =
       match s#abstract with
       | None -> None
-      | Some(abstract) -> Some(read-block ctx abstract)
+      | Some(abstract) -> Some(fun ctx -> read-block ctx abstract)
     in
 
     let () = footnote-in-title <- true in

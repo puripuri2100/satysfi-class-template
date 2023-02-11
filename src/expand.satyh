@@ -1,0 +1,415 @@
+@import: class-template
+@require: gr
+@require: color
+@require: vdecoset
+
+module ClassExpand : sig
+
+  val set-a0  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-a1  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-a2  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-a3  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-a4  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-a5  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-a6  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-a7  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-a8  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-a9  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-a10 : ClassTemplate.setting -> ClassTemplate.setting
+
+  val set-b0  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-b1  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-b2  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-b3  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-b4  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-b5  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-b6  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-b7  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-b8  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-b9  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-b10 : ClassTemplate.setting -> ClassTemplate.setting
+
+  val set-c0  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-c1  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-c2  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-c3  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-c4  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-c5  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-c6  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-c7  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-c8  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-c9  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-c10 : ClassTemplate.setting -> ClassTemplate.setting
+
+  val set-b0j  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-b1j  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-b2j  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-b3j  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-b4j  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-b5j  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-b6j  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-b7j  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-b8j  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-b9j  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-b10j : ClassTemplate.setting -> ClassTemplate.setting
+
+  val set-usletter : ClassTemplate.setting -> ClassTemplate.setting
+  val set-uslegal  : ClassTemplate.setting -> ClassTemplate.setting
+
+  val set-ja : ClassTemplate.setting -> ClassTemplate.setting
+  val set-en : ClassTemplate.setting -> ClassTemplate.setting
+
+  val set-fonts-han-light    : ClassTemplate.setting -> ClassTemplate.setting
+  val set-fonts-han-regular  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-fonts-han-medium   : ClassTemplate.setting -> ClassTemplate.setting
+  val set-fonts-han-bold     : ClassTemplate.setting -> ClassTemplate.setting
+  val set-fonts-han-heavy    : ClassTemplate.setting -> ClassTemplate.setting
+
+  val set-fonts-noto-light   : ClassTemplate.setting -> ClassTemplate.setting
+  val set-fonts-noto-regular : ClassTemplate.setting -> ClassTemplate.setting
+  val set-fonts-noto-medium  : ClassTemplate.setting -> ClassTemplate.setting
+  val set-fonts-noto-bold    : ClassTemplate.setting -> ClassTemplate.setting
+  val set-fonts-noto-heavy   : ClassTemplate.setting -> ClassTemplate.setting
+
+  val book-line-style-title-deco :
+    context ->
+    bool ->
+    (context -> block-boxes) ->
+    (context -> block-boxes) ->
+    (context -> block-boxes) option ->
+    (context -> block-boxes) option ->
+    (float * block-boxes) list
+  val book-line-style-section-deco : context -> int -> inline-boxes -> inline-boxes -> block-boxes
+  val book-line-style-toc-bib-deco : context -> inline-text -> block-boxes
+  val set-book-line-style : ClassTemplate.setting -> ClassTemplate.setting
+
+end = struct
+
+  open ClassTemplate
+
+  let set-paper w h s =
+    s
+    |> set-width-page w
+    |> set-height-page h
+
+  let set-a0  = set-paper 841mm 1189mm
+  let set-a1  = set-paper 594mm  841mm
+  let set-a2  = set-paper 420mm  594mm
+  let set-a3  = set-paper 297mm  420mm
+  let set-a4  = set-paper 210mm  297mm
+  let set-a5  = set-paper 148mm  210mm
+  let set-a6  = set-paper 105mm  148mm
+  let set-a7  = set-paper  74mm  195mm
+  let set-a8  = set-paper  52mm   74mm
+  let set-a9  = set-paper  37mm   52mm
+  let set-a10 = set-paper  26mm   37mm
+
+  let set-b0  = set-paper 1000mm 1414mm
+  let set-b1  = set-paper  707mm 1000mm
+  let set-b2  = set-paper  500mm  707mm
+  let set-b3  = set-paper  353mm  500mm
+  let set-b4  = set-paper  250mm  353mm
+  let set-b5  = set-paper  176mm  250mm
+  let set-b6  = set-paper  125mm  176mm
+  let set-b7  = set-paper   88mm  125mm
+  let set-b8  = set-paper   62mm   88mm
+  let set-b9  = set-paper   44mm   62mm
+  let set-b10 = set-paper   31mm   44mm
+
+  let set-c0  = set-paper 917mm 1297mm
+  let set-c1  = set-paper 648mm  917mm
+  let set-c2  = set-paper 458mm  648mm
+  let set-c3  = set-paper 324mm  458mm
+  let set-c4  = set-paper 229mm  324mm
+  let set-c5  = set-paper 162mm  229mm
+  let set-c6  = set-paper 114mm  162mm
+  let set-c7  = set-paper  81mm  114mm
+  let set-c8  = set-paper  57mm   81mm
+  let set-c9  = set-paper  40mm   57mm
+  let set-c10 = set-paper  28mm   40mm
+
+  let set-b0j  = set-paper 1030mm 1456mm
+  let set-b1j  = set-paper  728mm 1030mm
+  let set-b2j  = set-paper  515mm  728mm
+  let set-b3j  = set-paper  364mm  515mm
+  let set-b4j  = set-paper  257mm  364mm
+  let set-b5j  = set-paper  182mm  257mm
+  let set-b6j  = set-paper  128mm  182mm
+  let set-b7j  = set-paper   91mm  128mm
+  let set-b8j  = set-paper   64mm   91mm
+  let set-b9j  = set-paper   45mm   64mm
+  let set-b10j  = set-paper  32mm   45mm
+
+
+  let set-usletter = set-paper 8.5inch 11inch
+  let set-uslegal  = set-paper 8.5inch 14inch
+
+
+  let set-ja s =
+    s
+    |> set-toc-title {目次}
+    |> set-bib-title {参考文献}
+    |> set-figure-title-fun (fun i -> (
+      let i-it = i |> arabic |> embed-string in
+      {図#i-it;：\ }
+    ))
+    |> set-table-title-fun (fun i -> (
+      let i-it = i |> arabic |> embed-string in
+      {表#i-it;：\ }
+    ))
+    |> set-indent-length (fun ctx _ -> (
+      let (_,r,_) = get-font Kana ctx in
+      let fs = get-font-size ctx in
+      fs *' r
+    ))
+    |> set-paragraph-margin-top-ratio 0.5
+    |> set-paragraph-margin-bottom-ratio 0.5
+
+
+
+  let set-en s =
+    s
+    |> set-toc-title {Table of Contents}
+    |> set-bib-title {References}
+    |> set-figure-title-fun (fun i -> (
+      let i-it = i |> arabic |> embed-string in
+      {Figure #i-it;:\ }
+    ))
+    |> set-table-title-fun (fun i -> (
+      let i-it = i |> arabic |> embed-string in
+      {Table #i-it;:\ }
+    ))
+    |> set-indent-length (fun ctx i -> (
+      let (_,r,_) = get-font Latin ctx in
+      let fs = get-font-size ctx in
+      if i == 1 then
+        0pt
+      else
+        (fs *' r) *' 3.0
+    ))
+    |> set-paragraph-margin-top-ratio 1.5
+    |> set-paragraph-margin-bottom-ratio 0.5
+
+
+  let set-fonts-han-light    s =
+    s
+    |> set-text-font-cjk       (`fonts-han-serif-jp:HanSerifJP-Light`, 1.0, 0.0)
+    |> set-text-font-latin     (`fonts-han-serif-jp:HanSerifJP-Light`, 1.0, 0.0)
+    |> set-headline-font-cjk   (`fonts-han-sans-jp:HanSansJP-Light`,   1.0, 0.0)
+    |> set-headline-font-latin (`fonts-han-sans-jp:HanSansJP-Light`,   1.0, 0.0)
+
+  let set-fonts-han-regular  s =
+    s
+    |> set-text-font-cjk       (`fonts-han-serif-jp:HanSerifJP-Regular`, 1.0, 0.0)
+    |> set-text-font-latin     (`fonts-han-serif-jp:HanSerifJP-Regular`, 1.0, 0.0)
+    |> set-headline-font-cjk   (`fonts-han-sans-jp:HanSansJP-Regular`,   1.0, 0.0)
+    |> set-headline-font-latin (`fonts-han-sans-jp:HanSansJP-Regular`,   1.0, 0.0)
+
+  let set-fonts-han-medium   s =
+    s
+    |> set-text-font-cjk       (`fonts-han-serif-jp:HanSerifJP-Medium`, 1.0, 0.0)
+    |> set-text-font-latin     (`fonts-han-serif-jp:HanSerifJP-Medium`, 1.0, 0.0)
+    |> set-headline-font-cjk   (`fonts-han-sans-jp:HanSansJP-Medium`,   1.0, 0.0)
+    |> set-headline-font-latin (`fonts-han-sans-jp:HanSansJP-Medium`,   1.0, 0.0)
+
+  let set-fonts-han-bold     s =
+    s
+    |> set-text-font-cjk       (`fonts-han-serif-jp:HanSerifJP-Bold`, 1.0, 0.0)
+    |> set-text-font-latin     (`fonts-han-serif-jp:HanSerifJP-Bold`, 1.0, 0.0)
+    |> set-headline-font-cjk   (`fonts-han-sans-jp:HanSansJP-Bold`,   1.0, 0.0)
+    |> set-headline-font-latin (`fonts-han-sans-jp:HanSansJP-Bold`,   1.0, 0.0)
+
+  let set-fonts-han-heavy    s =
+    s
+    |> set-text-font-cjk       (`fonts-han-serif-jp:HanSerifJP-Heavy`, 1.0, 0.0)
+    |> set-text-font-latin     (`fonts-han-serif-jp:HanSerifJP-Heavy`, 1.0, 0.0)
+    |> set-headline-font-cjk   (`fonts-han-sans-jp:HanSansJP-Heavy`,   1.0, 0.0)
+    |> set-headline-font-latin (`fonts-han-sans-jp:HanSansJP-Heavy`,   1.0, 0.0)
+
+
+  let set-fonts-noto-light   s =
+    s
+    |> set-text-font-cjk       (`fonts-noto-serif-cjk-jp:NotoSerifCJKjp-Light`, 1.0, 0.0)
+    |> set-text-font-latin     (`fonts-noto-serif-cjk-jp:NotoSerifCJKjp-Light`, 1.0, 0.0)
+    |> set-headline-font-cjk   (`fonts-noto-sans-cjk-jp:NotoSansCJKjp-Light`,   1.0, 0.0)
+    |> set-headline-font-latin (`fonts-noto-sans-cjk-jp:NotoSansCJKjp-Light`,   1.0, 0.0)
+
+  let set-fonts-noto-regular s =
+    s
+    |> set-text-font-cjk       (`fonts-noto-serif-cjk-jp:NotoSerifCJKjp-Regular`, 1.0, 0.0)
+    |> set-text-font-latin     (`fonts-noto-serif-cjk-jp:NotoSerifCJKjp-Regular`, 1.0, 0.0)
+    |> set-headline-font-cjk   (`fonts-noto-sans-cjk-jp:NotoSansCJKjp-Regular`,   1.0, 0.0)
+    |> set-headline-font-latin (`fonts-noto-sans-cjk-jp:NotoSansCJKjp-Regular`,   1.0, 0.0)
+
+  let set-fonts-noto-medium  s =
+    s
+    |> set-text-font-cjk       (`fonts-noto-serif-cjk-jp:NotoSerifCJKjp-Medium`, 1.0, 0.0)
+    |> set-text-font-latin     (`fonts-noto-serif-cjk-jp:NotoSerifCJKjp-Medium`, 1.0, 0.0)
+    |> set-headline-font-cjk   (`fonts-noto-sans-cjk-jp:NotoSansCJKjp-Medium`,   1.0, 0.0)
+    |> set-headline-font-latin (`fonts-noto-sans-cjk-jp:NotoSansCJKjp-Medium`,   1.0, 0.0)
+
+  let set-fonts-noto-bold    s =
+    s
+    |> set-text-font-cjk       (`fonts-noto-serif-cjk-jp:NotoSerifCJKjp-Bold`, 1.0, 0.0)
+    |> set-text-font-latin     (`fonts-noto-serif-cjk-jp:NotoSerifCJKjp-Bold`, 1.0, 0.0)
+    |> set-headline-font-cjk   (`fonts-noto-sans-cjk-jp:NotoSansCJKjp-Bold`,   1.0, 0.0)
+    |> set-headline-font-latin (`fonts-noto-sans-cjk-jp:NotoSansCJKjp-Bold`,   1.0, 0.0)
+
+  let set-fonts-noto-heavy   s =
+    s
+    |> set-text-font-cjk       (`fonts-noto-serif-cjk-jp:NotoSerifCJKjp-Bold`, 1.0, 0.0)
+    |> set-text-font-latin     (`fonts-noto-serif-cjk-jp:NotoSerifCJKjp-Bold`, 1.0, 0.0)
+    |> set-headline-font-cjk   (`fonts-noto-sans-cjk-jp:NotoSansCJKjp-Bold`,   1.0, 0.0)
+    |> set-headline-font-latin (`fonts-noto-sans-cjk-jp:NotoSansCJKjp-Bold`,   1.0, 0.0)
+
+
+  let line-deco =
+    let fs = font-size-normal () in
+    let t1 = fs *' 0.15 in
+    let t2 = fs *' 0.1 in
+    let top-line (x,y) w h d = [
+        Gr.line (x, y +' h) (x +' w, y +' h)
+        |> stroke t1 Color.black;
+        Gr.line (x, y +' h -' fs *' 0.3) (x +' w, y +' h -' fs *' 0.3)
+        |> stroke t2 Color.black;
+      ]
+    in
+    let bottom-line (x,y) w h d = [
+        Gr.line (x, y) (x +' w, y)
+        |> stroke t1 Color.black;
+        Gr.line (x, y +' fs *' 0.3) (x +' w, y +' fs *' 0.3)
+        |> stroke t2 Color.black;
+      ]
+    in
+    let decoS (x,y) w h d =
+      List.append (top-line (x,y) w h d) (bottom-line (x,y) w h d)
+    in
+    let decoH (x,y) w h d =
+      []
+    in
+    let decoM (x,y) w h d =
+      top-line (x,y) w h d
+    in
+    let decoT (x,y) w h d =
+      bottom-line (x,y) w h d
+    in
+    (decoS, decoH, decoM, decoT)
+
+
+  let book-line-style-section-deco ctx depth num-ib title-ib =
+    let fs = get-font-size ctx in
+    let num-width = get-natural-width num-ib in
+    let space =
+      if num-width <' 0.001pt then
+        0pt
+      else
+        fs *' 0.5
+    in
+    let p =
+      if depth == 1 then
+        (fs, fs, fs, fs)
+      else
+        (0pt, 0pt, 0pt, 0pt)
+    in
+    let d =
+      if depth == 1 then
+        line-deco
+      else
+        VDecoSet.empty
+    in
+    block-frame-breakable ctx p d (fun ctx -> (
+      let p = (num-width +' space, 0pt, 0pt, 0pt) in
+      block-frame-breakable ctx p VDecoSet.empty (fun ctx -> (
+        let ib =
+          inline-skip ((num-width +' space) *' -1.0) ++ num-ib ++
+            inline-skip space ++ title-ib ++ inline-fil
+        in
+        line-break true false ctx ib
+      ))
+    ))
+
+
+  let book-line-style-toc-bib-deco ctx title-it =
+    let fs = get-font-size ctx in
+    let title-ib = read-inline ctx title-it in
+    let p = (fs *' 0.5, fs *' 0.5, fs *' 0.7, fs *' 0.7) in
+    let d = line-deco in
+    block-frame-breakable ctx p d (fun ctx -> (
+      title-ib ++ inline-fil
+      |> line-break true false ctx
+    ))
+
+
+  let line-deco-abstract =
+    let fs = font-size-normal () in
+    let t1 = fs *' 0.15 in
+    let t2 = fs *' 0.1 in
+    let top-line (x,y) w h d = [
+        Gr.line (x +' w *' 0.05, y +' h) (x +' w *' 0.95, y +' h)
+        |> stroke t1 Color.black;
+        Gr.line (x +' w *' 0.05, y +' h -' fs *' 0.3) (x +' w *' 0.95, y +' h -' fs *' 0.3)
+        |> stroke t2 Color.black;
+      ]
+    in
+    let bottom-line (x,y) w h d = [
+        Gr.line (x +' w *' 0.05, y) (x +' w *' 0.95, y)
+        |> stroke t1 Color.black;
+        Gr.line (x +' w *' 0.05, y +' fs *' 0.3) (x +' w *' 0.95, y +' fs *' 0.3)
+        |> stroke t2 Color.black;
+      ]
+    in
+    let decoS (x,y) w h d =
+      List.append (top-line (x,y) w h d) (bottom-line (x,y) w h d)
+    in
+    let decoH (x,y) w h d =
+      []
+    in
+    let decoM (x,y) w h d =
+      top-line (x,y) w h d
+    in
+    let decoT (x,y) w h d =
+      bottom-line (x,y) w h d
+    in
+    (decoS, decoH, decoM, decoT)
+
+
+  let book-line-style-title-deco ctx is-title-page tittle-f author-f date-f-opt abstract-f-opt =
+    let fs = get-font-size ctx in
+    let main-bb = block-nil
+    in
+      match abstract-f-opt with
+      | None -> [(0.45, main-bb)]
+      | Some(bb-f) -> (
+        let p = (fs, fs, fs, fs) in
+        let bb =
+          block-frame-breakable ctx p line-deco-abstract bb-f
+        in
+        if is-title-page then
+          [(0.45, main-bb); (0.35, bb)]
+        else
+          let line-ib =
+            let w = get-text-width ctx *' 0.4 in
+            let t = fs *' 0.1 in
+            inline-graphics w (t *' 0.5) (t *' 0.5) (fun (x,y) -> [
+              Gr.line (x, y) (x +' w, y)
+              |> stroke t Color.black
+            ])
+          in
+          let line-bb =
+            line-break false false ctx (inline-fil ++ line-ib ++ inline-fil)
+          in
+          [(
+            0.45,
+            main-bb +++ block-skip fs +++ bb +++ block-skip 0pt +++ line-bb +++ block-skip (fs *' 0.8)
+          )]
+      )
+
+  let set-book-line-style s =
+    s
+    |> set-section-title-deco book-line-style-section-deco
+    |> set-appendix-title-deco book-line-style-section-deco
+    |> set-toc-title-deco book-line-style-toc-bib-deco
+    |> set-bib-title-deco book-line-style-toc-bib-deco
+    |> set-title-deco book-line-style-title-deco
+
+end
