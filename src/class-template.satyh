@@ -77,11 +77,14 @@ module ClassTemplate : sig
   val set-toc-headline-font-depth : int -> setting -> setting
   val set-toc-font-size-ratio : (int -> float) -> setting -> setting
   val set-toc-deco : (context -> int -> string option -> string -> inline-text -> string -> block-boxes) -> setting -> setting
+  val set-toc-title-font-size-ratio : float -> setting -> setting
   val set-toc-title-deco : (context -> inline-text -> block-boxes) -> setting -> setting
   val set-appendix-num-fun : (int list -> string) -> setting -> setting
   val set-appendix-font-size-ratio : (int -> float) -> setting -> setting
   val set-appendix-title-deco : (context -> int -> inline-boxes -> inline-boxes -> block-boxes) -> setting -> setting
   val set-appendix-toc-num-fun : (int list -> string option) -> setting -> setting
+  val set-bib-title-font-size-ratio : float -> setting -> setting
+  val set-bib-title-deco : (context -> inline-text -> block-boxes) -> setting -> setting
   val set-doc-link-color : (length * color) -> setting -> setting
   val set-url-link-color : (length * color) -> setting -> setting
   val set-outline-depth : int -> setting -> setting
@@ -94,6 +97,8 @@ module ClassTemplate : sig
 
   val set-text-font : context -> context
   val set-headline-font : context -> context
+
+  val font-size-normal : unit -> length
 
   val +abstract : [inline-text?; block-text] block-cmd
 
@@ -366,11 +371,14 @@ end = struct
     toc-headline-font-depth : int;
     toc-font-size-ratio : int -> float;
     toc-deco       : context -> int -> string option -> string -> inline-text -> string -> block-boxes;
+    toc-title-font-size-ratio : float;
     toc-title-deco : context -> inline-text -> block-boxes;
     appendix-num-fun : int list -> string;
     appendix-font-size-ratio : int -> float;
     appendix-title-deco : context -> int -> inline-boxes -> inline-boxes -> block-boxes;
     appendix-toc-num-fun : int list -> string option;
+    bib-title-font-size-ratio : float;
+    bib-title-deco       : context -> inline-text -> block-boxes;
     doc-link-color : (length * color) option;
     url-link-color : (length * color) option;
     outline-depth  : int;
@@ -443,6 +451,7 @@ end = struct
     toc-headline-font-depth = 1;
     toc-font-size-ratio = fun i -> (if i == 1 then 1.1 else 1.0);
     toc-deco      = default-toc-deco;
+    toc-title-font-size-ratio = 1.6;
     toc-title-deco = default-toc-title-deco;
     appendix-num-fun = default-appendix-num-f;
     appendix-font-size-ratio = fun i -> (
@@ -453,6 +462,8 @@ end = struct
     );
     appendix-title-deco = default-section-title-deco;
     appendix-toc-num-fun = fun l -> (if List.length l > 3 then None else Some(default-appendix-num-f l));
+    bib-title-font-size-ratio = 1.6;
+    bib-title-deco = default-toc-title-deco;
     doc-link-color = None;
     url-link-color = None;
     outline-depth  = 2;
@@ -643,6 +654,9 @@ end = struct
   let set-toc-deco f setting =
     (| setting with toc-deco = f; |)
 
+  let set-toc-title-font-size-ratio r setting =
+    (| setting with toc-title-font-size-ratio = r; |)
+
   let set-toc-title-deco f setting =
     (| setting with toc-title-deco = f; |)
 
@@ -657,6 +671,12 @@ end = struct
 
   let set-appendix-toc-num-fun f setting =
     (| setting with appendix-toc-num-fun = f; |)
+
+  let set-bib-title-font-size-ratio r setting =
+    (| setting with bib-title-font-size-ratio = r; |)
+
+  let set-bib-title-deco f setting =
+    (| setting with bib-title-deco = f; |)
 
   let set-doc-link-color c setting =
     (| setting with doc-link-color = Some(c); |)
@@ -1245,7 +1265,6 @@ end = struct
     in
 
     let bb-toc =
-      let font-size-section = (font-size-normal ()) *' (s#section-font-size-ratio 1) in
       if s#show-toc then
         % ここを弄ると目次の表示を変化させられる
         let f (sec-num-lst-opt, depth, label, is-appendix, title-it) =
@@ -1283,7 +1302,7 @@ end = struct
         in
         let toc-title =
           let ctx =
-            ctx |> set-font-size font-size-section
+            ctx |> set-font-size (s#normal-font-size *' s#toc-title-font-size-ratio)
                 |> set-headline-font
           in
           (!setting-ref)#toc-title
@@ -1838,14 +1857,13 @@ end = struct
       |> List.fold-left (+++) block-nil
     in
     let header-text = (!setting-ref)#bib-title in
-    let font-size-section = (font-size-normal ()) *' ((!setting-ref)#section-font-size-ratio 1) in
+    let font-size-section = (font-size-normal ()) *' (!setting-ref)#bib-title-font-size-ratio in
     let header-ctx =
       ctx |> set-font-size font-size-section
           |> set-headline-font
           |> set-paragraph-margin font-size-section (font-size-normal ())
     in
-    let header-ib = read-inline header-ctx header-text ++ inline-fil in
-    let header = line-break true false header-ctx header-ib in
+    let header = (!setting-ref)#bib-title-deco header-ctx header-text in
     if (!setting-ref)#bib-page then
       clear-page +++ header +++ main
     else
