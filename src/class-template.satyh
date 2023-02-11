@@ -1538,9 +1538,9 @@ end = struct
     in
     let title-bb =
       if !is-appendix then
-        (!setting-ref)#appendix-title-deco title-ctx (List.length !sec-num-lst) num-ib title-ib
+        (!setting-ref)#appendix-title-deco title-ctx !depth-ref num-ib title-ib
       else
-        (!setting-ref)#section-title-deco title-ctx (List.length !sec-num-lst) num-ib title-ib
+        (!setting-ref)#section-title-deco title-ctx !depth-ref num-ib title-ib
     in
     let () = sec-num <- 0 in
     let bb = read-block ctx inner in
