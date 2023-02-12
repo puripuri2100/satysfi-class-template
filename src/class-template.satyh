@@ -77,7 +77,8 @@ module ClassTemplate : sig
   val set-section-num-fun : (int list -> string) -> setting -> setting
   val set-section-font-size-ratio : (int -> float) -> setting -> setting
   val set-section-title-deco : (context -> int -> inline-boxes -> inline-boxes -> block-boxes) -> setting -> setting
-  val set-toc-num-fun :  (int list -> string option) -> setting -> setting
+  val set-toc-margin  : (int -> float) -> setting -> setting
+  val set-toc-num-fun : (int list -> string option) -> setting -> setting
   val set-toc-headline-font-depth : int -> setting -> setting
   val set-toc-font-size-ratio : (int -> float) -> setting -> setting
   val set-toc-deco : (context -> int -> (string option * string) option -> string -> inline-text -> string -> block-boxes) -> setting -> setting
@@ -412,6 +413,7 @@ end = struct
     section-font-size-ratio : int -> float;
     section-title-deco : context -> int -> inline-boxes -> inline-boxes -> block-boxes;
     toc-num-fun   : int list -> string option;
+    toc-margin    : int -> float;
     toc-headline-font-depth : int;
     toc-font-size-ratio : int -> float;
     toc-deco       : context -> int -> (string option * string) option -> string -> inline-text -> string -> block-boxes;
@@ -454,8 +456,8 @@ end = struct
     normal-font-size = 12pt;
     text-leading-ratio = 0.4;
     headline-leading-ratio = 0.8;
-    paragraph-margin-top-ratio = 0.3;
-    paragraph-margin-bottom-ratio = 0.3;
+    paragraph-margin-top-ratio = 0.8;
+    paragraph-margin-bottom-ratio = 0.5;
     height-page   = 297mm;
     width-page    = 210mm;
     is-twoside    = false;
@@ -494,6 +496,12 @@ end = struct
       | _ -> 1.15
     );
     section-title-deco = default-section-title-deco;
+    toc-margin    = fun i -> (
+      match i with
+      | 1 -> 1.6
+      | 2 -> 1.3
+      | _ -> 1.15
+    );
     toc-num-fun   = fun l -> (if List.length l > 3 then None else Some(default-sec-num-f l));
     toc-headline-font-depth = 1;
     toc-font-size-ratio = fun i -> (if i == 1 then 1.1 else 1.0);
@@ -701,6 +709,9 @@ end = struct
 
   let set-section-title-deco f setting =
     (| setting with section-title-deco = f; |)
+
+  let set-toc-margin f setting =
+    (| setting with toc-margin = f; |)
 
   let set-toc-num-fun f setting =
     (| setting with toc-num-fun = f; |)
@@ -1361,9 +1372,7 @@ end = struct
           ||
           not s#show-footer
           ||
-          pbinfo#page-number < introduction-start-page
-          ||
-          pbinfo#page-number <= title-page-counter
+          (pbinfo#page-number < introduction-start-page && pbinfo#page-number <= title-page-counter)
         then
           block-nil
         else
@@ -1441,7 +1450,7 @@ end = struct
                 |> set-font-size fs
                 |> set-leading (fs *' leading-ratio)
                 |> set-min-gap-of-lines (fs *' leading-ratio)
-                |> set-paragraph-margin (fs *' s#paragraph-margin-top-ratio) (fs *' s#paragraph-margin-bottom-ratio)
+                |> set-paragraph-margin (fs *' (s#toc-margin depth)) (fs *' (s#toc-margin depth))
           in
           let page-num = get-cross-reference-page-fix label in
           s#toc-deco ctx depth sec-num-str-opt label title-it page-num
