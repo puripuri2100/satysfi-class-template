@@ -468,7 +468,7 @@ end = struct
       ))
     in
       match abstract-f-opt with
-      | None -> [(0.45, title-bb)]
+      | None -> [(0.45, title-bb +++ block-skip (fs *' 2.0))]
       | Some(bb-f) -> (
         let p = (fs, fs, fs, fs) in
         let bb =
@@ -494,8 +494,7 @@ end = struct
           in
           [(
             0.45,
-            title-bb +++ block-skip fs +++ bb +++ block-skip (fs *' 1.2) +++
-              line-bb +++ block-skip (fs *' 0.8)
+            title-bb +++ block-skip fs +++ bb +++ block-skip (fs *' 2.0)
           )]
       )
 
