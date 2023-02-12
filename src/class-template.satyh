@@ -1073,8 +1073,8 @@ end = struct
             ctx |> set-font-size fs
                 |> set-headline-font
                 |> set-paragraph-margin
-                    (fs *'  (!setting-ref)#paragraph-margin-top-ratio)
-                    (fs *'  (!setting-ref)#paragraph-margin-bottom-ratio)
+                    (fs *'  (!setting-ref)#leading-ratio)
+                    (fs *'  (!setting-ref)#leading-ratio)
           in
           line-break false false ctx (
             inline-fil ++ read-inline ctx date ++ inline-fil

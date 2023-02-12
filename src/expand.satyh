@@ -2,6 +2,7 @@
 @require: gr
 @require: color
 @require: vdecoset
+@require: option
 
 module ClassExpand : sig
 
@@ -275,9 +276,9 @@ end = struct
       ]
     in
     let bottom-line (x,y) w h d = [
-        Gr.line (x, y) (x +' w, y)
+        Gr.line (x, y -' d) (x +' w, y -' d)
         |> stroke t1 Color.black;
-        Gr.line (x, y +' fs *' 0.3) (x +' w, y +' fs *' 0.3)
+        Gr.line (x, y -' d +' fs *' 0.3) (x +' w, y -' d +' fs *' 0.3)
         |> stroke t2 Color.black;
       ]
     in
@@ -340,6 +341,65 @@ end = struct
     ))
 
 
+    let line-deco-title =
+      let fs = font-size-normal () in
+      let t1 = fs *' 0.15 in
+      let t2 = fs *' 0.1 in
+      let g = fs *' 0.3 in
+      let decoS (x,y) w h d =
+        [
+          Gr.rectangle (x, y -' d) (x +' w, y +' h)
+          |> stroke t1 Color.black;
+          Gr.rectangle (x +' g, y -' d +' g) (x +' w -' g, y +' h -' g)
+          |> stroke t2 Color.black;
+        ]
+      in
+      let decoH (x,y) w h d =
+        [
+          Gr.line (x, y +' h) (x, y -' d)
+          |> stroke t1 Color.black;
+          Gr.line (x +' g, y +' h) (x +' g, y -' d)
+          |> stroke t2 Color.black;
+          Gr.line (x +' w, y +' h) (x +' w, y -' d)
+          |> stroke t1 Color.black;
+          Gr.line (x +' w -' g, y +' h) (x +' w -' g, y -' d)
+          |> stroke t2 Color.black;
+        ]
+      in
+      let decoM (x,y) w h d =
+        [
+          Gr.poly-line (x, y -' d) [
+            (x, y +' h);
+            (x +' w, y +' h);
+            (x +' w, y -' d);
+          ]
+          |> stroke t1 Color.black;
+          Gr.poly-line (x +' g, y -' d) [
+            (x +' g, y +' h -' g);
+            (x +' w -' g, y +' h -' g);
+            (x +' w -' g, y -' d);
+          ]
+          |> stroke t2 Color.black;
+        ]
+      in
+      let decoT (x,y) w h d =
+        [
+          Gr.poly-line (x, y +' h) [
+            (x, y -' d);
+            (x +' w, y -' d);
+            (x +' w, y +' h);
+          ]
+          |> stroke t1 Color.black;
+          Gr.poly-line (x +' g, y +' h) [
+            (x +' g, y -' d);
+            (x +' w -' g, y -' d);
+            (x +' w -' g, y +' h);
+          ]
+          |> stroke t2 Color.black;
+        ]
+      in
+      (decoS, decoH, decoM, decoT)
+
   let line-deco-abstract =
     let fs = font-size-normal () in
     let t1 = fs *' 0.15 in
@@ -352,9 +412,9 @@ end = struct
       ]
     in
     let bottom-line (x,y) w h d = [
-        Gr.line (x +' w *' 0.05, y) (x +' w *' 0.95, y)
+        Gr.line (x +' w *' 0.05, y -' d) (x +' w *' 0.95, y -' d)
         |> stroke t1 Color.black;
-        Gr.line (x +' w *' 0.05, y +' fs *' 0.3) (x +' w *' 0.95, y +' fs *' 0.3)
+        Gr.line (x +' w *' 0.05, y -' d +' fs *' 0.3) (x +' w *' 0.95, y -' d +' fs *' 0.3)
         |> stroke t2 Color.black;
       ]
     in
@@ -373,19 +433,49 @@ end = struct
     (decoS, decoH, decoM, decoT)
 
 
-  let book-line-style-title-deco ctx is-title-page tittle-f author-f date-f-opt abstract-f-opt =
+  let book-line-style-title-deco ctx is-title-page title-f author-f date-f-opt abstract-f-opt =
     let fs = get-font-size ctx in
-    let main-bb = block-nil
+    let title-bb =
+      let p1 = fs *' 2.0 in
+      let p2 = fs in
+      let p = (p1, p1, p2, p2) in
+      block-frame-breakable ctx p line-deco-title (fun ctx -> (
+        let line-ctx =
+          ctx |> set-paragraph-margin 0pt 0pt
+              |> set-min-paragraph-ascender-and-descender 0pt 0pt
+        in
+        let line-ib =
+          let w = get-text-width ctx in
+          let t = fs *' 0.1 in
+          inline-graphics w (t *' 0.5) (t *' 0.5) (fun (x,y) -> [
+            Gr.line (x, y) (x +' w, y)
+            |> stroke t Color.black
+          ])
+        in
+        let line-bb =
+          line-break false false line-ctx (inline-fil ++ line-ib ++ inline-fil)
+        in
+        let gap1 = block-skip (fs *' 0.8) in
+        let gap2 = block-skip (fs *' 0.4) in
+        let author = author-f ctx in
+        if get-natural-length author <' 0.01pt && Option.is-none date-f-opt then
+          gap1 +++ title-f ctx +++ gap1
+        else
+          let bb = gap1 +++ title-f ctx +++ gap1 +++ line-bb +++ gap1 +++ author in
+          match date-f-opt with
+          | Some(f) -> bb +++ gap2 +++ f ctx +++ gap2
+          | None -> bb +++ gap2
+      ))
     in
       match abstract-f-opt with
-      | None -> [(0.45, main-bb)]
+      | None -> [(0.45, title-bb)]
       | Some(bb-f) -> (
         let p = (fs, fs, fs, fs) in
         let bb =
           block-frame-breakable ctx p line-deco-abstract bb-f
         in
         if is-title-page then
-          [(0.45, main-bb); (0.35, bb)]
+          [(0.45, title-bb); (0.35, bb)]
         else
           let line-ib =
             let w = get-text-width ctx *' 0.4 in
@@ -395,12 +485,17 @@ end = struct
               |> stroke t Color.black
             ])
           in
+          let line-ctx =
+            ctx |> set-paragraph-margin 0pt 0pt
+                |> set-min-paragraph-ascender-and-descender 0pt 0pt
+          in
           let line-bb =
-            line-break false false ctx (inline-fil ++ line-ib ++ inline-fil)
+            line-break false false line-ctx (inline-fil ++ line-ib ++ inline-fil)
           in
           [(
             0.45,
-            main-bb +++ block-skip fs +++ bb +++ block-skip 0pt +++ line-bb +++ block-skip (fs *' 0.8)
+            title-bb +++ block-skip fs +++ bb +++ block-skip (fs *' 1.2) +++
+              line-bb +++ block-skip (fs *' 0.8)
           )]
       )
 
