@@ -49,8 +49,11 @@ module ClassTemplate : sig
   val set-paragraph-margin-bottom-ratio : float -> setting -> setting
   val set-height-page : length -> setting -> setting
   val set-width-page : length -> setting -> setting
-  val set-left-margin : length -> setting -> setting
+  val set-is-twoside      : bool -> setting -> setting
+  val set-left-margin  : length -> setting -> setting
   val set-right-margin : length -> setting -> setting
+  val set-inner-margin : length -> setting -> setting
+  val set-outer-margin : length -> setting -> setting
   val set-top-margin : length -> setting -> setting
   val set-bottom-margin : length -> setting -> setting
   val set-multicolumn : int -> setting -> setting
@@ -351,8 +354,9 @@ end = struct
     paragraph-margin-bottom-ratio : float;
     height-page   : length;
     width-page    : length;
-    left-margin   : length;
-    right-margin  : length;
+    is-twoside    : bool;
+    inner-margin  : length;
+    outer-margin  : length;
     top-margin    : length;
     bottom-margin : length;
     multicolumn   : int;
@@ -419,8 +423,9 @@ end = struct
     paragraph-margin-bottom-ratio = 0.3;
     height-page   = 297mm;
     width-page    = 210mm;
-    left-margin   = (210mm -' (12pt *' 40.0)) *' 0.5;
-    right-margin  = (210mm -' (12pt *' 40.0)) *' 0.5;
+    is-twoside    = false;
+    inner-margin  = (210mm -' (12pt *' 40.0)) *' 0.5;
+    outer-margin  = (210mm -' (12pt *' 40.0)) *' 0.5;
     top-margin    = 25mm;
     bottom-margin = 25mm;
     multicolumn   = 1;
@@ -569,11 +574,20 @@ end = struct
   let set-width-page width-page setting =
     (| setting with width-page = width-page; |)
 
+  let set-is-twoside is-twoside setting =
+    (| setting with is-twoside = is-twoside; |)
+
   let set-left-margin left-margin setting =
-    (| setting with left-margin = left-margin; |)
+    (| setting with is-twoside = false; inner-margin = left-margin; |)
 
   let set-right-margin right-margin setting =
-    (| setting with right-margin = right-margin; |)
+    (| setting with is-twoside = false; outer-margin = right-margin; |)
+
+  let set-inner-margin inner-margin setting =
+    (| setting with is-twoside = true; inner-margin = inner-margin; |)
+
+  let set-outer-margin outer-margin setting =
+    (| setting with is-twoside = true; outer-margin = outer-margin; |)
 
   let set-top-margin top-margin setting =
     (| setting with top-margin = top-margin; |)
@@ -1015,7 +1029,7 @@ end = struct
   let document s main =
     % 参照の中身を確定させるために、settingの方を先に評価しないといけない
     let () = setting-ref <- s in
-    let all-text-width = s#width-page -' s#left-margin -' s#right-margin in
+    let all-text-width = s#width-page -' s#inner-margin -' s#outer-margin in
     let () = all-text-width-ref <- all-text-width in
     let text-width =
       (all-text-width -' s#columnsep *' (float (s#multicolumn - 1))) *' (1.0 /. float s#multicolumn)
@@ -1175,9 +1189,18 @@ end = struct
         else
           top-pad
       in
+      let left-margin =
+        if s#is-twoside then
+          if pbinfo#page-number mod 2 == 0 then
+            s#outer-margin
+          else
+            s#inner-margin
+        else
+          s#inner-margin
+      in
       (|
         text-height = text-height -' float-len -' top-pad;
-        text-origin = (s#left-margin, s#top-margin +' float-len +' top-pad);
+        text-origin = (left-margin, s#top-margin +' float-len +' top-pad);
       |)
     in
     % ヘッダーとフッターの設定
@@ -1244,7 +1267,16 @@ end = struct
         in
         origin +++ float-bb
       in
-      let header-origin = (s#left-margin, s#top-margin) in
+      let left-margin =
+        if s#is-twoside then
+          if pbinfo#page-number mod 2 == 0 then
+            s#outer-margin
+          else
+            s#inner-margin
+        else
+          s#inner-margin
+      in
+      let header-origin = (left-margin, s#top-margin) in
       let footer =
         if
           List.any (fun i -> i == pbinfo#page-number) !ignore-header-footer-lst
@@ -1264,7 +1296,7 @@ end = struct
             let page-num-s = s#page-num page-num in
             s#footer ctx pbinfo#page-number page-num page-num-s
       in
-      let footer-origin = (s#left-margin, s#height-page -' s#bottom-margin) in
+      let footer-origin = (left-margin, s#height-page -' s#bottom-margin) in
       (|
         header-content = header;
         header-origin = header-origin;
