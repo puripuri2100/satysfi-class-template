@@ -81,9 +81,21 @@ module ClassExpand : sig
     (context -> block-boxes) option ->
     (context -> block-boxes) option ->
     (float * block-boxes) list
-  val article-line-style-section-deco : context -> int -> inline-boxes -> inline-boxes -> block-boxes
+  val article-line-style-section-deco : context -> int -> inline-boxes ?-> inline-boxes -> inline-boxes -> block-boxes
   val article-line-style-toc-bib-deco : context -> inline-text -> block-boxes
   val set-article-line-style : ClassTemplate.setting -> ClassTemplate.setting
+
+
+  %val book-style-title-deco :
+  %  context ->
+  %  bool ->
+  %  (context -> block-boxes) ->
+  %  (context -> block-boxes) ->
+  %  (context -> block-boxes) option ->
+  %  (context -> block-boxes) option ->
+  %  (float * block-boxes) list
+  val set-book-ja-style : ClassTemplate.setting -> ClassTemplate.setting
+  val set-book-en-style : ClassTemplate.setting -> ClassTemplate.setting
 
 end = struct
 
@@ -164,6 +176,7 @@ end = struct
       let fs = get-font-size ctx in
       fs *' r
     ))
+    |> set-appendix-title `付録`
     |> set-paragraph-margin-top-ratio 0.5
     |> set-paragraph-margin-bottom-ratio 0.5
 
@@ -171,7 +184,7 @@ end = struct
 
   let set-en s =
     s
-    |> set-toc-title {Table of Contents}
+    |> set-toc-title {Contents}
     |> set-bib-title {References}
     |> set-figure-title-fun (fun i -> (
       let i-it = i |> arabic |> embed-string in
@@ -189,8 +202,10 @@ end = struct
       else
         (fs *' r) *' 3.0
     ))
+    |> set-appendix-title `Appendix`
     |> set-paragraph-margin-top-ratio 1.5
     |> set-paragraph-margin-bottom-ratio 0.5
+
 
 
   let set-fonts-han-light    s =
@@ -298,8 +313,18 @@ end = struct
     (decoS, decoH, decoM, decoT)
 
 
-  let article-line-style-section-deco ctx depth num-ib title-ib =
+  let article-line-style-section-deco ctx depth ?:appendix-ib-opt num-ib title-ib =
     let fs = get-font-size ctx in
+    let num-ib =
+      match appendix-ib-opt with
+      | None -> num-ib
+      | Some(ib) -> (
+        if depth == 1 then
+          ib ++ inline-skip (fs *' 0.5) ++ num-ib
+        else
+          num-ib
+      )
+    in
     let num-width = get-natural-width num-ib in
     let space =
       if num-width <' 0.001pt then
@@ -501,14 +526,108 @@ end = struct
 
   let set-article-line-style s =
     s
-    |> set-section-title-deco article-line-style-section-deco
-    |> set-appendix-title-deco article-line-style-section-deco
+    |> set-section-title-deco (fun ctx depth num-ib title-ib -> article-line-style-section-deco ctx depth num-ib title-ib)
+    |> set-appendix-title-deco (fun ctx depth label-ib num-ib title-ib -> article-line-style-section-deco ctx depth ?:(label-ib) num-ib title-ib)
     |> set-toc-title-deco article-line-style-toc-bib-deco
     |> set-bib-title-deco article-line-style-toc-bib-deco
     |> set-title-deco article-line-style-title-deco
 
 
 
-  
+  let book-section-num-fun ilst =
+    match ilst with
+    | [] -> ` `
+    | [n] -> (
+      match NumConversion.to-roman-upper n with
+      | None -> ` `
+      | Some(s) -> s
+    )
+    | _::n::[] -> arabic n
+    | _::xs -> (
+      let-rec sub l =
+        match l with
+        | [] -> ` `
+        | [n] -> arabic n
+        | n::xs -> (arabic n) ^ `.` ^ (sub xs)
+      in
+      sub xs
+    )
+
+
+  let book-appendix-num-fun ilst =
+    match ilst with
+    | [] -> ` `
+    | [n] -> (
+      match NumConversion.to-roman-upper n with
+      | None -> ` `
+      | Some(s) -> s
+    )
+    | _::n::[] -> (
+      let n = n mod 26 in
+      let s = string-unexplode [n + 0x40] in
+      s
+    )
+    | _::n::xs -> (
+      let n = n mod 26 in
+      let s = string-unexplode [n + 0x40] in
+      let-rec sub l =
+        match l with
+        | [] -> ` `
+        | [n] -> arabic n
+        | n::xs -> (arabic n) ^ `.` ^ (sub xs)
+      in
+      s ^ `.` ^ (sub xs)
+    )
+
+
+  let book-header-fun ctx all-page-num page-num page-num-str =
+    let num-ib =
+      page-num-str
+      |> embed-string
+      |> read-inline ctx
+    in
+    let ib =
+      if all-page-num mod 2 == 0 then
+        num-ib ++ inline-fil
+      else
+        inline-fil ++ num-ib
+    in
+    line-break true true ctx ib
+
+
+
+  let set-book-ja-style s =
+    s
+    |> set-multicolumn 1
+    |> set-section-num-fun book-section-num-fun
+    |> set-toc-num-fun (fun l -> (if List.length l <= 3 then Some(book-section-num-fun l) else None))
+    |> set-appendix-title `付録`
+    |> set-appendix-num-fun book-appendix-num-fun
+    |> set-appendix-toc-num-fun (fun l -> (if List.length l <= 3 then Some(book-appendix-num-fun l) else None))
+    |> set-toc-headline-font-depth 2
+    |> set-is-twoside true
+    |> set-footer (fun _ _ _ _ -> block-nil)
+    |> set-header book-header-fun
+    |> set-introduction-footer (fun _ _ _ _ -> block-nil)
+    |> set-introduction-header book-header-fun
+    |> set-title-page true
+
+
+
+  let set-book-en-style s =
+    s
+    |> set-multicolumn 1
+    |> set-section-num-fun book-section-num-fun
+    |> set-toc-num-fun (fun l -> (if List.length l <= 3 then Some(book-section-num-fun l) else None))
+    |> set-appendix-title `Appendix`
+    |> set-appendix-num-fun book-appendix-num-fun
+    |> set-appendix-toc-num-fun (fun l -> (if List.length l <= 3 then Some(book-appendix-num-fun l) else None))
+    |> set-toc-headline-font-depth 2
+    |> set-is-twoside true
+    |> set-footer (fun _ _ _ _ -> block-nil)
+    |> set-header book-header-fun
+    |> set-introduction-footer (fun _ _ _ _ -> block-nil)
+    |> set-introduction-header book-header-fun
+    |> set-title-page true
 
 end
