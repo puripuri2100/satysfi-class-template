@@ -111,7 +111,7 @@ module ClassTemplate : sig
 
   val +abstract : [inline-text?; block-text] block-cmd
 
-  val +appendix : [] block-cmd
+  val +appendix : [block-text] block-cmd
 
   val +section : [string?; bool?; string?; inline-text; block-text] block-cmd
   val +p : [inline-text] block-cmd
@@ -1611,15 +1611,17 @@ end = struct
     line-break true true ctx ((indent ctx !paragraph-counter) ++ ib ++ inline-fil)
 
 
-  let-block ctx +appendix =
+  let-block ctx +appendix bt =
     let () = is-appendix <- true in
-    block-nil
+    let bb = read-block ctx bt in
+    let () = is-appendix <- false in
+    bb
 
 
-  let section-title-format ctx is-omit-num sec-num-lst depth label is-omit-num outline-title-opt title =
+  let section-title-format ctx is-appendix is-omit-num sec-num-lst depth label is-omit-num outline-title-opt title =
     let title-ctx =
       let font-size =
-        if !is-appendix then
+        if is-appendix then
           depth
           |> (!setting-ref)#appendix-font-size-ratio
           |> (*') (font-size-normal ())
@@ -1632,7 +1634,7 @@ end = struct
           |> set-font-size font-size
     in
     let appendix-ib =
-      if !is-appendix then
+      if is-appendix then
         (!setting-ref)#appendix-title
         |> embed-string
         |> read-inline title-ctx
@@ -1651,7 +1653,7 @@ end = struct
       if is-omit-num then
         ` `
       else
-        if !is-appendix then
+        if is-appendix then
           (!setting-ref)#appendix-num-fun sec-num-lst
         else
           (!setting-ref)#section-num-fun sec-num-lst
@@ -1672,9 +1674,9 @@ end = struct
     let () = register-cross-reference-num label num in
     let toc-data =
       if is-omit-num then
-        (None, depth, label, !is-appendix, title)
+        (None, depth, label, is-appendix, title)
       else
-        (Some(sec-num-lst), depth, label, !is-appendix, title)
+        (Some(sec-num-lst), depth, label, is-appendix, title)
     in
     let () = toc-ref <- toc-data :: !toc-ref in
     let num-ib =
@@ -1732,7 +1734,7 @@ end = struct
           (old-sec-num-lst, old-sec-num)
     in
     let (appendix-title, num-ib, title-ib) =
-      section-title-format ctx is-omit-num (List.reverse !sec-num-lst) !depth-ref label is-omit-num outline-title-opt title
+      section-title-format ctx !is-appendix is-omit-num (List.reverse !sec-num-lst) !depth-ref label is-omit-num outline-title-opt title
     in
     let title-ctx =
       ctx |> set-paragraph-margin (font-size-normal () *' 2.0) (font-size-normal () *' 1.5)
