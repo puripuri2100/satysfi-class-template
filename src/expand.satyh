@@ -176,6 +176,7 @@ end = struct
       let fs = get-font-size ctx in
       fs *' r
     ))
+    |> set-abstract-title {概要}
     |> set-appendix-title `付録`
     |> set-paragraph-margin-top-ratio 0.5
     |> set-paragraph-margin-bottom-ratio 0.5
@@ -202,6 +203,7 @@ end = struct
       else
         (fs *' r) *' 3.0
     ))
+    |> set-abstract-title {Abstract}
     |> set-appendix-title `Appendix`
     |> set-paragraph-margin-top-ratio 1.5
     |> set-paragraph-margin-bottom-ratio 0.5

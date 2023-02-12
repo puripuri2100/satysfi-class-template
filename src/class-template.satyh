@@ -60,6 +60,7 @@ module ClassTemplate : sig
   val set-columnsep : length -> setting -> setting
   val set-indent-length : (context -> int -> length) -> setting -> setting
   val set-abstract : block-text -> setting -> setting
+  val set-abstract-title : inline-text -> setting -> setting
   val set-introduction : block-text -> setting -> setting
   val set-introduction-page-num : (int -> string) -> setting -> setting
   val set-introduction-header : (context -> int -> int -> string -> block-boxes) -> setting -> setting
@@ -398,6 +399,7 @@ end = struct
     columnsep     : length;
     indent-length : context -> int -> length;
     abstract      : block-text option;
+    abstract-title : inline-text;
     introduction  : block-text option;
     introduction-page-num : int -> string;
     introduction-header   : context -> int -> int -> string -> block-boxes;
@@ -473,6 +475,7 @@ end = struct
       font-size *' font-ratio-cjk
     );
     abstract      = None;
+    abstract-title = {概要};
     introduction  = None;
     introduction-page-num = fun i -> (
       match NumConversion.to-roman-lower i with
@@ -650,6 +653,9 @@ end = struct
 
   let set-abstract abstract setting =
     (| setting with abstract = Some(abstract); |)
+
+  let set-abstract-title title setting =
+    (| setting with abstract-title = title; |)
 
   let set-introduction introduction setting =
     (| setting with introduction = Some(introduction); |)
@@ -1579,7 +1585,7 @@ end = struct
   let-block ctx +abstract ?:title-opt contents =
     let title-it =
       match title-opt with
-      | None -> {概要}
+      | None -> (!setting-ref)#abstract-title
       | Some(it) -> it
     in
     let pads =
