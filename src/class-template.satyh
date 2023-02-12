@@ -1347,13 +1347,18 @@ end = struct
         | None -> block-nil
       in
       let toc-before-break =
-        if s#show-title && s#title-page then
+        if s#show-title && s#title-page && not Option.is-none introduction-opt then
           break-page s#multicolumn
         else
           block-nil
       in
-      plus-new-pages +++ hook1 +++ introduction-bb +++
-        toc-before-break +++ hook2 +++ block-skip 0pt +++ bb-toc +++ bb-main
+      let bb-toc-with-hook2 =
+        if s#title-page then
+          toc-before-break +++ block-skip 0pt +++ bb-toc +++ hook2
+        else
+          toc-before-break +++ block-skip 0pt +++ hook2 +++ bb-toc
+      in
+      plus-new-pages +++ hook1 +++ introduction-bb +++ bb-toc-with-hook2 +++ bb-main
     in
     let doc-main = page-break-multicolumn page seps columnhookf columnendhookf pagecontf pagepartsf (bb-thanks +++ bb-main +++ bb-last) in
 
