@@ -43,7 +43,8 @@ module ClassTemplate : sig
   val set-title-page : bool -> setting -> setting
   val set-bib-page : bool -> setting -> setting
   val set-normal-font-size : length -> setting -> setting
-  val set-leading-ratio : float -> setting -> setting
+  val set-text-leading-ratio : float -> setting -> setting
+  val set-headline-leading-ratio : float -> setting -> setting
   val set-paragraph-margin-top-ratio : float -> setting -> setting
   val set-paragraph-margin-bottom-ratio : float -> setting -> setting
   val set-height-page : length -> setting -> setting
@@ -181,10 +182,11 @@ end = struct
       [(
         0.45,
         title-f ctx +++
-        block-skip (fs *' 0.5) +++
+        block-skip (fs *' 2.5) +++
         author-f ctx +++
-        block-skip 0pt +++
+        block-skip (fs *' 0.5) +++
         date +++
+        block-skip (fs *' 0.5) +++
         abstract +++
         block-skip (fs *' 1.0)
       )]
@@ -340,7 +342,8 @@ end = struct
     title-page    : bool;
     bib-page      : bool;
     normal-font-size : length;
-    leading-ratio : float;
+    text-leading-ratio : float;
+    headline-leading-ratio : float;
     paragraph-margin-top-ratio : float;
     paragraph-margin-bottom-ratio : float;
     height-page   : length;
@@ -407,7 +410,8 @@ end = struct
     title-page    = false;
     bib-page      = false;
     normal-font-size = 12pt;
-    leading-ratio = 0.3;
+    text-leading-ratio = 0.4;
+    headline-leading-ratio = 0.8;
     paragraph-margin-top-ratio = 0.3;
     paragraph-margin-bottom-ratio = 0.3;
     height-page   = 297mm;
@@ -544,8 +548,11 @@ end = struct
   let set-normal-font-size normal-font-size setting =
     (| setting with normal-font-size = normal-font-size; |)
 
-  let set-leading-ratio leading-ratio setting =
-    (| setting with leading-ratio = leading-ratio; |)
+  let set-text-leading-ratio leading-ratio setting =
+    (| setting with text-leading-ratio = leading-ratio; |)
+
+  let set-headline-leading-ratio leading-ratio setting =
+    (| setting with headline-leading-ratio = leading-ratio; |)
 
   let set-paragraph-margin-top-ratio paragraph-margin-top-ratio setting =
     (| setting with paragraph-margin-top-ratio = paragraph-margin-top-ratio; |)
@@ -727,8 +734,8 @@ end = struct
       |> set-paragraph-margin
           (fs *' (!setting-ref)#paragraph-margin-top-ratio)
           (fs *' (!setting-ref)#paragraph-margin-bottom-ratio)
-      |> set-leading (fs *' (!setting-ref)#leading-ratio)
-      |> set-min-gap-of-lines (fs *' (!setting-ref)#leading-ratio)
+      |> set-leading (fs *' (!setting-ref)#text-leading-ratio)
+      |> set-min-gap-of-lines (fs *' (!setting-ref)#text-leading-ratio)
       %|> set-min-paragraph-ascender-and-descender 0pt 0pt
 
       % Introductionの開始する位置を記録する
@@ -1031,10 +1038,17 @@ end = struct
 
     let title-block ctx =
       let fs = font-size-normal () *' (!setting-ref)#title-font-size-ratio in
+      let joinf i bb1 bb2 =
+        if i <= 0 then
+          bb2
+        else
+          bb1 +++ block-skip (fs *' (!setting-ref)#headline-leading-ratio) +++ bb2
+      in
       let ctx =
         ctx |> set-font-size fs
             |> set-headline-font
-            |> set-paragraph-margin (fs *' (!setting-ref)#leading-ratio) (fs *' (!setting-ref)#leading-ratio)
+            |> set-paragraph-margin 0pt 0pt
+            |> set-min-paragraph-ascender-and-descender 0pt 0pt
       in
       let f it =
         line-break false false ctx (
@@ -1043,16 +1057,23 @@ end = struct
       in
       s#title
       |> List.map f
-      |> List.fold-left (+++) block-nil
+      |> List.fold-lefti joinf block-nil
     in
 
     let author-block ctx =
       let fs = font-size-normal () *' (!setting-ref)#author-font-size-ratio in
+      let joinf i bb1 bb2 =
+        if i <= 0 then
+          bb2
+        else
+          bb1 +++ block-skip (fs *' (!setting-ref)#headline-leading-ratio) +++ bb2
+      in
       let f it =
         let ctx =
           ctx |> set-font-size fs
               |> set-headline-font
-              |> set-paragraph-margin (fs *' (!setting-ref)#leading-ratio) (fs *' (!setting-ref)#leading-ratio)
+              |> set-paragraph-margin 0pt 0pt
+              |> set-min-paragraph-ascender-and-descender 0pt 0pt
         in
         line-break false false ctx (
           inline-fil ++ read-inline ctx it ++ inline-fil
@@ -1060,7 +1081,7 @@ end = struct
       in
       s#author
       |> List.map f
-      |> List.fold-left (+++) block-nil
+      |> List.fold-lefti joinf block-nil
     in
 
     let date-block =
@@ -1072,9 +1093,8 @@ end = struct
           let ctx =
             ctx |> set-font-size fs
                 |> set-headline-font
-                |> set-paragraph-margin
-                    (fs *'  (!setting-ref)#leading-ratio)
-                    (fs *'  (!setting-ref)#leading-ratio)
+                |> set-paragraph-margin 0pt 0pt
+                |> set-min-paragraph-ascender-and-descender 0pt 0pt
           in
           line-break false false ctx (
             inline-fil ++ read-inline ctx date ++ inline-fil
@@ -1283,11 +1303,18 @@ end = struct
             else
               set-text-font
           in
+          let leading-ratio =
+            if depth <= s#toc-headline-font-depth then
+              s#headline-leading-ratio
+            else
+              s#text-leading-ratio
+          in
           let fs = font-size-normal () *' s#toc-font-size-ratio depth in
           let ctx =
             ctx |> font-f
                 |> set-font-size fs
-                |> set-leading (fs *' s#leading-ratio)
+                |> set-leading (fs *' leading-ratio)
+                |> set-min-gap-of-lines (fs *' leading-ratio)
                 |> set-paragraph-margin (fs *' s#paragraph-margin-top-ratio) (fs *' s#paragraph-margin-bottom-ratio)
           in
           let page-num = get-cross-reference-page-fix label in

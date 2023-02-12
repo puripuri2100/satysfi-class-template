@@ -455,16 +455,16 @@ end = struct
         let line-bb =
           line-break false false line-ctx (inline-fil ++ line-ib ++ inline-fil)
         in
-        let gap1 = block-skip (fs *' 0.8) in
-        let gap2 = block-skip (fs *' 0.4) in
+        let gap1 = block-skip (fs *' 1.0) in
+        let gap2 = block-skip (fs *' 0.8) in
         let author = author-f ctx in
         if get-natural-length author <' 0.01pt && Option.is-none date-f-opt then
           gap1 +++ title-f ctx +++ gap1
         else
           let bb = gap1 +++ title-f ctx +++ gap1 +++ line-bb +++ gap1 +++ author in
           match date-f-opt with
-          | Some(f) -> bb +++ gap2 +++ f ctx +++ gap2
-          | None -> bb +++ gap2
+          | Some(f) -> bb +++ gap2 +++ f ctx +++ gap1
+          | None -> bb +++ gap1
       ))
     in
       match abstract-f-opt with
