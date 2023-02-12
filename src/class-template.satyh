@@ -94,12 +94,15 @@ module ClassTemplate : sig
   val ignore-header-footer-inline : unit -> inline-boxes
   val ignore-header-footer-block : unit -> block-boxes
 
+  val register-doc-hyper-link : string -> inline-boxes -> inline-boxes
   val doc-hyper-link : string -> inline-boxes -> inline-boxes
 
   val set-text-font : context -> context
   val set-headline-font : context -> context
 
   val font-size-normal : unit -> length
+
+  val clear-page-multicolumn : unit -> block-boxes
 
   val +abstract : [inline-text?; block-text] block-cmd
 
@@ -1937,5 +1940,8 @@ end = struct
 
   let doc-hyper-link label ib =
     doc-hyper-link (!setting-ref)#doc-link-color label ib
+
+  let clear-page-multicolumn () =
+    break-page (!setting-ref)#multicolumn
 
 end
