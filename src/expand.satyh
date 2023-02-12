@@ -3,6 +3,7 @@
 @require: color
 @require: vdecoset
 @require: option
+@require: num-conversion/num-conversion
 
 module ClassExpand : sig
 
@@ -72,7 +73,7 @@ module ClassExpand : sig
   val set-fonts-noto-bold    : ClassTemplate.setting -> ClassTemplate.setting
   val set-fonts-noto-heavy   : ClassTemplate.setting -> ClassTemplate.setting
 
-  val book-line-style-title-deco :
+  val article-line-style-title-deco :
     context ->
     bool ->
     (context -> block-boxes) ->
@@ -80,9 +81,9 @@ module ClassExpand : sig
     (context -> block-boxes) option ->
     (context -> block-boxes) option ->
     (float * block-boxes) list
-  val book-line-style-section-deco : context -> int -> inline-boxes -> inline-boxes -> block-boxes
-  val book-line-style-toc-bib-deco : context -> inline-text -> block-boxes
-  val set-book-line-style : ClassTemplate.setting -> ClassTemplate.setting
+  val article-line-style-section-deco : context -> int -> inline-boxes -> inline-boxes -> block-boxes
+  val article-line-style-toc-bib-deco : context -> inline-text -> block-boxes
+  val set-article-line-style : ClassTemplate.setting -> ClassTemplate.setting
 
 end = struct
 
@@ -297,7 +298,7 @@ end = struct
     (decoS, decoH, decoM, decoT)
 
 
-  let book-line-style-section-deco ctx depth num-ib title-ib =
+  let article-line-style-section-deco ctx depth num-ib title-ib =
     let fs = get-font-size ctx in
     let num-width = get-natural-width num-ib in
     let space =
@@ -330,7 +331,7 @@ end = struct
     ))
 
 
-  let book-line-style-toc-bib-deco ctx title-it =
+  let article-line-style-toc-bib-deco ctx title-it =
     let fs = get-font-size ctx in
     let title-ib = read-inline ctx title-it in
     let p = (fs *' 0.5, fs *' 0.5, fs *' 0.7, fs *' 0.7) in
@@ -433,7 +434,7 @@ end = struct
     (decoS, decoH, decoM, decoT)
 
 
-  let book-line-style-title-deco ctx is-title-page title-f author-f date-f-opt abstract-f-opt =
+  let article-line-style-title-deco ctx is-title-page title-f author-f date-f-opt abstract-f-opt =
     let fs = get-font-size ctx in
     let title-bb =
       let p1 = fs *' 2.0 in
@@ -498,12 +499,16 @@ end = struct
           )]
       )
 
-  let set-book-line-style s =
+  let set-article-line-style s =
     s
-    |> set-section-title-deco book-line-style-section-deco
-    |> set-appendix-title-deco book-line-style-section-deco
-    |> set-toc-title-deco book-line-style-toc-bib-deco
-    |> set-bib-title-deco book-line-style-toc-bib-deco
-    |> set-title-deco book-line-style-title-deco
+    |> set-section-title-deco article-line-style-section-deco
+    |> set-appendix-title-deco article-line-style-section-deco
+    |> set-toc-title-deco article-line-style-toc-bib-deco
+    |> set-bib-title-deco article-line-style-toc-bib-deco
+    |> set-title-deco article-line-style-title-deco
+
+
+
+  
 
 end
