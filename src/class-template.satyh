@@ -80,7 +80,7 @@ module ClassTemplate : sig
   val set-toc-num-fun :  (int list -> string option) -> setting -> setting
   val set-toc-headline-font-depth : int -> setting -> setting
   val set-toc-font-size-ratio : (int -> float) -> setting -> setting
-  val set-toc-deco : (context -> int -> string option -> string -> inline-text -> string -> block-boxes) -> setting -> setting
+  val set-toc-deco : (context -> int -> (string option * string) option -> string -> inline-text -> string -> block-boxes) -> setting -> setting
   val set-toc-title-font-size-ratio : float -> setting -> setting
   val set-toc-title-deco : (context -> inline-text -> block-boxes) -> setting -> setting
   val set-appendix-title : string -> setting -> setting
@@ -295,7 +295,7 @@ end = struct
   let default-toc-deco ctx depth num-str-opt label title page-num =
     match num-str-opt with
     | None -> block-nil
-    | Some(num-str) -> (
+    | Some(appendix-opt, num-str) -> (
       let fs = get-font-size ctx in
       let (fs, indent) =
         match depth with
@@ -304,6 +304,16 @@ end = struct
       in
       let ctx =
         ctx |> set-font-size fs
+      in
+      let num-str =
+        match appendix-opt with
+        | Some(s) -> (
+          if depth == 1 && string-length s > 0 && string-length num-str > 0 then
+            s ^ #` `# ^ num-str
+          else
+            num-str
+        )
+        | None -> num-str
       in
       let num-ib =
         num-str
@@ -404,7 +414,7 @@ end = struct
     toc-num-fun   : int list -> string option;
     toc-headline-font-depth : int;
     toc-font-size-ratio : int -> float;
-    toc-deco       : context -> int -> string option -> string -> inline-text -> string -> block-boxes;
+    toc-deco       : context -> int -> (string option * string) option -> string -> inline-text -> string -> block-boxes;
     toc-title-font-size-ratio : float;
     toc-title-deco : context -> inline-text -> block-boxes;
     appendix-title   : string;
@@ -1393,13 +1403,24 @@ end = struct
         % ここを弄ると目次の表示を変化させられる
         let f (sec-num-lst-opt, depth, label, is-appendix, title-it) =
           let sec-num-str-opt =
+            let appendix-title = s#appendix-title in
             match sec-num-lst-opt with
-            | None -> Some(` `) % 節番号が無い場合
+            | None -> (
+              % 節番号が無い場合
+              if is-appendix then
+                Some(Some(appendix-title), ` `)
+              else
+                Some(None, ` `)
+            )
             | Some(sec-num-lst) -> (
               if is-appendix then
-                s#appendix-toc-num-fun sec-num-lst
+                match s#appendix-toc-num-fun sec-num-lst with
+                | None -> None
+                | Some(s) -> Some(Some(appendix-title), s)
               else
-                s#toc-num-fun sec-num-lst
+                match s#toc-num-fun sec-num-lst with
+                | None -> None
+                | Some(s) -> Some(None, s)
             )
           in
           let font-f =
