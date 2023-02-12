@@ -1249,6 +1249,8 @@ end = struct
           not s#show-footer
           ||
           pbinfo#page-number < introduction-start-page
+          ||
+          pbinfo#page-number <= title-page-counter
         then
           block-nil
         else
@@ -1360,8 +1362,18 @@ end = struct
       |> line-break true true ctx
     in
     let bb-main =
-      let hook1 = register-introduction-start-page () in
-      let hook2 = register-start-page () in
+      let hook1 =
+        if s#title-page && not (Option.is-none introduction-opt) then
+          register-introduction-start-page ()
+        else
+          register-start-page ()
+      in
+      let hook2 =
+        if s#title-page && not (Option.is-none introduction-opt) then
+          register-start-page ()
+        else
+          block-nil
+      in
       let plus-new-pages =
         if s#show-title && s#title-page then
           break-page-n title-page-counter s#multicolumn
@@ -1379,13 +1391,8 @@ end = struct
         else
           block-nil
       in
-      let bb-toc-with-hook2 =
-        if s#title-page then
-          toc-before-break +++ block-skip 0pt +++ bb-toc +++ hook2
-        else
-          toc-before-break +++ block-skip 0pt +++ hook2 +++ bb-toc
-      in
-      plus-new-pages +++ hook1 +++ introduction-bb +++ bb-toc-with-hook2 +++ bb-main
+      plus-new-pages +++ hook1 +++ introduction-bb +++ toc-before-break +++
+        block-skip 0pt +++ bb-toc +++ hook2 +++ bb-main
     in
     let doc-main = page-break-multicolumn page seps columnhookf columnendhookf pagecontf pagepartsf (bb-thanks +++ bb-main +++ bb-last) in
 
