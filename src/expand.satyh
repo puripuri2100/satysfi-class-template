@@ -475,7 +475,7 @@ end = struct
           block-frame-breakable ctx p line-deco-abstract bb-f
         in
         if is-title-page then
-          [(0.45, title-bb); (0.35, bb)]
+          [(0.35, title-bb); (0.3, bb)]
         else
           let line-ib =
             let w = get-text-width ctx *' 0.4 in
