@@ -149,22 +149,24 @@ document (
     >
     +section {簡単な設定} <
       +p{関数を使った設定の変更の方法を説明します。ここでは文書執筆の際に頻繁に使うことになるである設定項目を説明します。ここで紹介する関数は全てdocument関数の第一引数に与えるための設定にパイプライン演算子を使って適用する物です。}
+      +p{各設定関数はどれも最後に\sci(`setting`);型を受け取って\sci(`setting`);型を返す設計になっているため、型の説明部分ではこの部分を省いて書くこととします。例えば、\sc(`f : inline-text`);と書いてある関数\sci(`f`);は、本来は\sc(`f : inline-text -> setting -> setting`);という型が付いています。実際に設定に書く際は\sc(`default-config
+|> f {text}`);と書くことになるため、こちらの方が使い方がわかりやすくなると思います。}
       +section {タイトル・著者名等の付与} <
         +p{タイトルの付与は\listing {
-          * \sci(`set-title : inline-text -> setting -> setting`);
-          * \sci(`set-title-multiline : inline-text lsit -> setting -> setting`);
+          * \sci(`set-title : inline-text`);
+          * \sci(`set-title-multiline : inline-text lsit`);
         }のいずれかで行います。タイトルが一行の場合には\sci(`set-title`);関数を\sc(`default-setting
 |> set-title {タイトル}`);のように、複数行の場合には\sci(`set-title-multiline`);関数を\sc(`default-setting
 |> set-title-multiline {| タイトル1行目 | 2行目 |}`);のように用います。}
         +p{著者名の付与は\listing {
-          * \sci(`set-author : inline-text -> setting -> setting`);
-          * \sci(`set-author-multiline : inline-text lsit -> setting -> setting`);
+          * \sci(`set-author : inline-text`);
+          * \sci(`set-author-multiline : inline-text lsit`);
         }のいずれかで行います。タイトルが一行の場合には\sci(`set-author`);関数を\sc(`default-setting
 |> set-author {著者名}`);のように、複数行の場合には\sci(`set-title-multiline`);関数を\sc(`default-setting
 |> set-author-multiline {| 著者名1行目 | 2行目 |}`);のように用います。}
-        +p{日付の付与は\sci(`set-date : inline-text -> setting -> setting`);で\sc(`default-setting
+        +p{日付の付与は\sci(`set-date : inline-text`);で\sc(`default-setting
 |> set-date {2023-02-11}`);のようにして行います。}
-        +p{概要の付与は\sci(`set-abstract : block-text -> setting -> setting`);関数及び\sci(`+abstract : [inline-text?; block-text] block-cmd`);コマンドで行います。\sc(`default-setting
+        +p{概要の付与は\sci(`set-abstract : block-text`);関数及び\sci(`+abstract : [inline-text?; block-text] block-cmd`);コマンドで行います。\sc(`default-setting
 |> set-abstract '<
   +abstract <
     +p{概要}
@@ -176,7 +178,7 @@ document (
       >
       +section {導入部の記述} <
         +p{タイトルと目次の間に記述する「はじめに」などの導入部を設定することができます。}
-        +p{\sci(`set-introduction : block-text -> setting -> setting`);関数で実現できる。使い方は\sci(`set-abstract`);と同様である。引数のブロック内では\sci(`+section`);コマンドなども使用することができる。たとえば、節番号無しの「はじめに」を記述する場合には\sc(`default-setting
+        +p{\sci(`set-introduction : block-text`);関数で実現できる。使い方は\sci(`set-abstract`);と同様である。引数のブロック内では\sci(`+section`);コマンドなども使用することができる。たとえば、節番号無しの「はじめに」を記述する場合には\sc(`default-setting
 |> set-introduction '<
   +section ?* ?:(true) {はじめに} <
     +p{はじめにの内容}
@@ -190,10 +192,10 @@ document (
           * ヘッダー
           * フッター
         }の4項目について、表示の有無を切り替えることができます。それぞれ\listing{
-          * \sci(`set-show-title  : bool -> setting -> setting`);
-          * \sci(`set-show-toc    : bool -> setting -> setting`);
-          * \sci(`set-show-header : bool -> setting -> setting`);
-          * \sci(`set-show-footer : bool -> setting -> setting`);
+          * \sci(`set-show-title  : bool`);
+          * \sci(`set-show-toc    : bool`);
+          * \sci(`set-show-header : bool`);
+          * \sci(`set-show-footer : bool`);
         }という関数を用いて\sci(`true`);もしくは\sci(`false`);のフラグで管理をします。例えば\listing {
           * タイトルは表示する
           * 目次は表示しない
@@ -204,18 +206,18 @@ document (
 |> set-show-toc    false
 |> set-show-header false
 |> set-show-footer false`);のように記述します。}
-        +p{タイトルのみが表示される表紙を作成したい場合には\sci(`set-title-page : bool -> setting -> setting`);という関数を用います。\sc(`default-setting |> set-title-page true`);とすることで表紙が出現します。}
-        +p{参考文献を別ページとしたい場合には\sci(`set-bib-page : bool -> setting -> setting`);を用い、\sci(`set-title-page`);のときと同様に使用します。}
+        +p{タイトルのみが表示される表紙を作成したい場合には\sci(`set-title-page : bool`);という関数を用います。\sc(`default-setting |> set-title-page true`);とすることで表紙が出現します。}
+        +p{参考文献を別ページとしたい場合には\sci(`set-bib-page : bool`);を用い、\sci(`set-title-page`);のときと同様に使用します。}
       >
       +section {ページサイズ・余白の設定} <
-        +p{PDFの大きさを指定することができます。横幅は\sci(`set-width-page : length -> setting -> setting`);関数で、縦の長さは\sci(`set-height-page : length -> setting -> setting`);関数でそれぞれ設定します。例えばPDFのサイズをB5版にしたい場合には\sc(`default-setting
+        +p{PDFの大きさを指定することができます。横幅は\sci(`set-width-page : length`);関数で、縦の長さは\sci(`set-height-page : length`);関数でそれぞれ設定します。例えばPDFのサイズをB5版にしたい場合には\sc(`default-setting
 |> set-width-page 182mm
 |> set-height-page 257mm`);とします。}
         +p{上下左右の余白はそれぞれ\listing {
-          * \sci(`set-top-margin    : length -> setting -> setting`);
-          * \sci(`set-bottom-margin : length -> setting -> setting`);
-          * \sci(`set-left-margin   : length -> setting -> setting`);
-          * \sci(`set-right-margin  : length -> setting -> setting`);
+          * \sci(`set-top-margin    : length`);
+          * \sci(`set-bottom-margin : length`);
+          * \sci(`set-left-margin   : length`);
+          * \sci(`set-right-margin  : length`);
         }という関数で制御します。例えば\listing {
           * 上30mm
           * 下25mm
@@ -226,9 +228,14 @@ document (
 |> set-bottom-margin 25mm
 |> set-left-margin   20mm
 |> set-right-margin  20mm`);と記述します。}
+        +p{もし奇数ページ偶数ページで左右の余白の大きさを切り替えたい場合には\sci(`set-left-margin`);・\sci(`set-left-margin`);関数ではなく次の2つの関数を使用して設定します。\listing{
+          * \sci(`set-inner-margin : length`);
+          * \sci(`set-outer-margin : length`);
+        }前者はノドに当たる部分を、後者は小口に当たる部分を設定します。横書き左綴じの場合には奇数ページ時にノドが左になり小口が右になります。}
+        +p{奇数ページ偶数ページで左右の余白を切り替えることを明示的に与えるには\sci(`set-is-twoside : bool`);関数を使います。\sci(`true`);のときに切り替えが発生します。}
       >
       +section {多段組} <
-        +p{多段組の設定では段数と段間の長さを指定することができます。段数は\sci(`set-multicolumn : int -> setting -> setting`);関数で指定することができます。段間の長さは\sci(`set-columnsep : length -> setting -> setting`);関数で指定します。例えば\listing {
+        +p{多段組の設定では段数と段間の長さを指定することができます。段数は\sci(`set-multicolumn : int`);関数で指定することができます。段間の長さは\sci(`set-columnsep : length`);関数で指定します。例えば\listing {
           * 3段組み
           * 段の間は5mm
         }という体裁にしたい場合は\sc(`default-setting
@@ -244,10 +251,10 @@ document (
             ** かな・漢字用
             ** ラテン文字用
         }の4種類です。タイトル用フォントはタイトルや節見出しに使われます。それぞれ\listing {
-          * \sci(`set-text-font-cjk   : (string * float * float) -> setting -> setting`);
-          * \sci(`set-text-font-latin : (string * float * float) -> setting -> setting`);
-          * \sci(`set-headline-font-cjk   : (string * float * float) -> setting -> setting`);
-          * \sci(`set-headline-font-latin : (string * float * float) -> setting -> setting`);
+          * \sci(`set-text-font-cjk   : (string * float * float)`);
+          * \sci(`set-text-font-latin : (string * float * float)`);
+          * \sci(`set-headline-font-cjk   : (string * float * float)`);
+          * \sci(`set-headline-font-latin : (string * float * float)`);
         }の関数で指定します。例えば本文用のラテン文字用フォントを\sci(`Junicode`);にしようと思った場合は\sc(```default-setting
 |> set-text-font-latin (`Junicode`, 1.0, 0.0);```);とします。このタプルの情報は先頭からそれぞれ\enumerate{
           * フォント登録名（各フォントインストール用ライブラリのドキュメントを参照してください）
@@ -257,17 +264,19 @@ document (
       >
       +section {フォントサイズ・行間などの設定} <
         +p{フォントサイズは本文のフォントサイズ及び各見出しへの倍率を指定できます。}
-        +p{本文のフォントサイズは\sci(`set-normal-font-size : length -> setting -> setting`);関数で指定します。}
+        +p{本文のフォントサイズは\sci(`set-normal-font-size : length`);関数で指定します。}
         +p{各種倍率設定では本文のフォントサイズを基準とし、以下の項目について設定できます。\listing {
-          * 行間の長さ：\sci(`set-leading-ratio : float -> setting -> setting`);
-          * 段落の上に入るスペース：\sci(`set-paragraph-margin-top-ratio : float -> setting -> setting`);
-          * 段落の下に入るスペース：\sci(`set-paragraph-margin-bottom-ratio : float -> setting -> setting`);
-          * タイトルのフォントサイズ：\sci(`set-title-font-size-ratio : float -> setting -> setting`);
-          * 著者名のフォントサイズ：\sci(`set-author-font-size-ratio : float -> setting -> setting`);
-          * 日付のフォントサイズ：\sci(`set-date-font-size-ratio : float -> setting -> setting`);
-          * 節見出しのフォントサイズ（節の深さに応じて倍率を変化させられます）：\sci(`set-section-font-size-ratio : (int -> float) -> setting -> setting`);
-          * 目次のフォントサイズ：\sci(`set-toc-font-size-ratio : (int -> float) -> setting -> setting`);
-          * 付録のフォントサイズ：\sci(`set-appendix-font-size-ratio : (int -> float) -> setting -> setting`);
+          * 行間の長さ：\sci(`set-text-leading-ratio : float`);
+          * 見出しの行間の長さ：\sci(`set-headline-leading-ratio`);
+          * 段落の上に入るスペース：\sci(`set-paragraph-margin-top-ratio : float`);
+          * 段落の下に入るスペース：\sci(`set-paragraph-margin-bottom-ratio : float`);
+          * タイトルのフォントサイズ：\sci(`set-title-font-size-ratio : float`);
+          * 著者名のフォントサイズ：\sci(`set-author-font-size-ratio : float`);
+          * 日付のフォントサイズ：\sci(`set-date-font-size-ratio : float`);
+          * 節見出しのフォントサイズ（節の深さに応じて倍率を変化させられます）：\sci(`set-section-font-size-ratio : (int -> float)`);
+          * 目次タイトルのフォントサイズ：\sci(`set-toc-font-size-ratio : (int -> float)`);
+          * 付録タイトルのフォントサイズ：\sci(`set-appendix-font-size-ratio : (int -> float)`);
+          * 参考文献タイトルのフォントサイズ\sci(`set-bib-title-font-size-ratio`);
         }例えば\listing {
           * 本文のフォントサイズ：10pt
           * タイトルのフォントサイズ：18pt
@@ -297,16 +306,16 @@ document (
           * 付録節番号（目次）
         }です。}
         +p{概要・目次・参考文献のタイトルはそれぞれ\listing {
-          * \sci(`set-abstract-title : inline-text -> setting -> setting`);
-          * \sci(`set-toc-title : inline-text -> setting -> setting`);
-          * \sci(`set-bib-title : inline-text -> setting -> setting`);
+          * \sci(`set-abstract-title : inline-text`);
+          * \sci(`set-toc-title : inline-text`);
+          * \sci(`set-bib-title : inline-text`);
         }で設定できます。例えば概要のタイトルを「Abstract」に、目次タイトルを「Table of Contents」にし参考文献タイトルを「References」に変更したい場合は\sc(```default-setting
 |> set-abstract-title {Abstract}
 |> set-toc-title {Table of Contents}
 |> set-bib-title {References}```);と記述すればよい。}
         +p{図と表はそれぞれ\listing {
-          * \sci(`set-figure-title-fun : (int -> inline-text) -> setting -> setting`);
-          * \sci(`set-table-title-fun  : (int -> inline-text) -> setting -> setting`);
+          * \sci(`set-figure-title-fun : (int -> inline-text)`);
+          * \sci(`set-table-title-fun  : (int -> inline-text)`);
         }で設定できます。図・表の番号を受け取り、テキストを返すようにします。例えば図番号を「Figure 1: 」のように、表番号を「Table 1: 」のようにしたい場合は\sc(```default-setting
 |> set-figure-title-fun (fun i -> (
   let i-it = i |> arabic |> embed-string in
@@ -317,8 +326,8 @@ document (
   {Table #i-it;:\ }
 ))```);のように記述すればよい。}
         +p{節番号と目次用節番号はそれぞれ\listing {
-          * \sci(`set-section-num-fun : (int list -> string) -> setting -> setting`);
-          * \sci(`set-toc-num-fun     : (int list -> string option) -> setting -> setting`);
+          * \sci(`set-section-num-fun : (int list -> string)`);
+          * \sci(`set-toc-num-fun     : (int list -> string option)`);
         }で設定できます。基本的には節番号のリストを受け取り、それを文字列に変換する関数を設定すれば良いです。目次用節番号の設定では、目次に表示させない場合に\sci(`None`);を返すようにするという違いがありますが、その他は共通です。例えば節見出しを深さ順に\enumerate {
           * 第1章
           * 1.1.
@@ -341,15 +350,15 @@ document (
   |> set-section-num-fun f
   |> set-toc-num-fun (fun l -> (if List.length l > 2 then None else Some(f l)))
 ) '<>```);のように設定します。付録の節番号及び目次用節番号も同様に\listing {
-          * \sci(`set-appendix-num-fun : (int list -> string) -> setting -> setting`);
-          * \sci(`set-appendix-toc-num-fun : (int list -> string option) -> setting -> setting`);
+          * \sci(`set-appendix-num-fun : (int list -> string)`);
+          * \sci(`set-appendix-toc-num-fun : (int list -> string option)`);
         }で設定することができます。}
       >
       +section {ハイパーリンクの枠線} <
         +p{ドキュメント内のハイパーリンク及び外部URLへのリンクに枠線を表示させることができます。この枠線はPDF閲覧時にのみ表示され、印刷時には繁栄されません。}
         +p{設定には\listing {
-          * \sci(`set-doc-link-color : (length * color) -> setting -> setting`);
-          * \sci(`set-url-link-color : (length * color) -> setting -> setting`);
+          * \sci(`set-doc-link-color : (length * color)`);
+          * \sci(`set-url-link-color : (length * color)`);
         }という関数を用います。与える値は「枠線の太さ」と「枠線の色」の2つの情報のタプルです。例えば\listing{
           * ドキュメント内のリンクには赤色の枠線(1pt)
           * 外部URLへのリンクには青色の枠線(1pt)
@@ -370,14 +379,14 @@ document (
           * 説明
           * キーワード
         }をそれぞれ指定することができます。それぞれ\listing {
-          * \sci(`set-title-str : string -> setting -> setting`);
-          * \sci(`set-author-str : string -> setting -> setting`);
-          * \sci(`set-subject : string -> setting -> setting`);
-          * \sci(`set-keywords : string list -> setting -> setting`);
+          * \sci(`set-title-str : string`);
+          * \sci(`set-author-str : string`);
+          * \sci(`set-subject : string`);
+          * \sci(`set-keywords : string list`);
         }関数によって設定を行います。設定されない場合はタイトルと著者名が自動で補われます。}
       >
       +section {PDFしおり情報の制御} <
-        +p{PDFに付与されるしおり情報（ブックマーク情報）では、文書の階層構造をどこまで展開しておくかを設定することができます。\sci(`set-outline-depth : int -> setting -> setting`);という関数でその設定を変更することができます。}
+        +p{PDFに付与されるしおり情報（ブックマーク情報）では、文書の階層構造をどこまで展開しておくかを設定することができます。\sci(`set-outline-depth : int`);という関数でその設定を変更することができます。}
       >
     >
   >
