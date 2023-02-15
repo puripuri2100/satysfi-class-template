@@ -114,18 +114,19 @@ document (
 +p{テキスト2}`);のようにして使用します。}
       >
       +section {付録} <
-        +p{\sci(`+appendix : [] block-cmd`);コマンドにより提供されます。このコマンドを書いたあとの\sci(`+section`);コマンドは付録になります。トップレベル以外に置いた場合の動作は保証されません。}
+        +p{\sci(`+appendix : [block-text] block-cmd`);コマンドにより提供されます。このコマンドの中の\sci(`+section`);コマンドは付録になります。トップレベル以外を囲った場合の動作は保証されません。}
         +p{\sc(```+section {節1} <>
 +section {節2} <
   +section {小節1} <>
   +section {小節2} <>
 >
-+appendix;
-+section {付録1} <
-  +section {小節1} <>
-  +section {小節2} <>
->
-+section {付録1} <>```);のようにして使うと図\ref(`appendix-demo`);のようになります。}
++appendix <
+  +section {付録1} <
+    +section {小節1} <>
+    +section {小節2} <>
+  >
+  +section {付録1} <>
+>```);のようにして使うと図\ref(`appendix-demo`);のようになります。}
         +figure ?:(`appendix-demo`) ?:(top) {付録のデモ} <
           +image (`img/appendix-demo.jpg`);
         >
@@ -183,7 +184,7 @@ document (
   +section ?* ?:(true) {はじめに} <
     +p{はじめにの内容}
   >
->`);のように記述すればよい。これにより、自動的に目次の前にコンテンツが挿入され、ページ番号の取り扱いも良しなにされるようになる。}
+>`);のように記述すればよいです。これにより、自動的に目次の前にコンテンツが挿入され、ページ番号の取り扱いも良しなにされるようになる。}
       >
       +section {コンテンツの表示設定} <
         +p{\listing{
@@ -212,7 +213,7 @@ document (
       +section {ページサイズ・余白の設定} <
         +p{PDFの大きさを指定することができます。横幅は\sci(`set-width-page : length`);関数で、縦の長さは\sci(`set-height-page : length`);関数でそれぞれ設定します。例えばPDFのサイズをB5版にしたい場合には\sc(`default-setting
 |> set-width-page 182mm
-|> set-height-page 257mm`);とします。}
+|> set-height-page 257mm`);とします。A4版やB5(JIS)版などのよく使われる大きさについては、別途事前に定義された関数が存在します。詳しくは\ref(`benri-page`);節をご覧ください。}
         +p{上下左右の余白はそれぞれ\listing {
           * \sci(`set-top-margin    : length`);
           * \sci(`set-bottom-margin : length`);
@@ -260,7 +261,7 @@ document (
           * フォント登録名（各フォントインストール用ライブラリのドキュメントを参照してください）
           * 文字の拡大率
           * 文字の上下の補正値
-        }です。}
+        }です。源ノ明朝やNotoフォントなどの既存のフォントの設定については別途事前に定義された関数が存在します。詳しくは\ref(`benri-font`);節をご覧ください。}
       >
       +section {フォントサイズ・行間などの設定} <
         +p{フォントサイズは本文のフォントサイズ及び各見出しへの倍率を指定できます。}
@@ -312,7 +313,7 @@ document (
         }で設定できます。例えば概要のタイトルを「Abstract」に、目次タイトルを「Table of Contents」にし参考文献タイトルを「References」に変更したい場合は\sc(```default-setting
 |> set-abstract-title {Abstract}
 |> set-toc-title {Table of Contents}
-|> set-bib-title {References}```);と記述すればよい。}
+|> set-bib-title {References}```);と記述すればよいです。}
         +p{図と表はそれぞれ\listing {
           * \sci(`set-figure-title-fun : (int -> inline-text)`);
           * \sci(`set-table-title-fun  : (int -> inline-text)`);
@@ -324,7 +325,8 @@ document (
 |> set-table-title-fun (fun i -> (
   let i-it = i |> arabic |> embed-string in
   {Table #i-it;:\ }
-))```);のように記述すればよい。}
+))```);のように記述すればよいです。}
+        +p{概要や目次、図表などのタイトルを各言語ごとのものに変更する場合については、別途事前に定義された関数が存在するため自分の手でわざわざ設定する必要はありません。詳しくは\ref(`benri-lang`);節をご覧ください。}
         +p{節番号と目次用節番号はそれぞれ\listing {
           * \sci(`set-section-num-fun : (int list -> string)`);
           * \sci(`set-toc-num-fun     : (int list -> string option)`);
@@ -390,7 +392,77 @@ document (
       >
     >
   >
-  +section {テーマ関数を使用したデザインの設定} <>
+  +section {便利関数を使用したデザインの設定} <
+    +p{設定関数の量は数多くあり、一々設定するのはとても煩雑です。そこで、これらの設定を良しなに行ってくれる機能を提供する拡張パッケージを同梱しています。読み込みは\sc(`@require: class-template/expand`);によって行います。モジュール名は\sc(`ClassTemplateExpand`);ですので、\sci(`open`);キーワードで\sc(`open ClassTemplateExpand
+in`);のように書いて事前に展開していると良いでしょう。}
+    +p{以下、提供している関数を紹介します。ほぼすべての関数の型は全て\sci(`setting -> setting`);ですので、そのまま渡すだけで成立します。}
+    +section ?:(`benri-page`) {ページサイズ} <
+      +p{よく使われるページサイズを設定できます。提供する規格は\listing{
+        * A版：a0からa10まで
+        * B版：b0からb10まで
+        * C版：c0からc10まで
+        * B版（JIS規格）：b0jからb10jまで
+      }となっており、どれも\sci(`set-a4`);や\sci(`set-b5j`);のように\sci(`set-{版名}`);というパターンで命名されています。}
+      +p{また、欧米圏で使われる規格にも一部対応しており、\listing {
+        * \sci(`set-usletter`);
+        * \sci(`set-uslegal`);
+      }の2つが提供されています。}
+    >
+    +section ?:(`benri-lang`) {言語設定} <
+      +p{各種タイトルの表示を切り替えます。現在\listing {
+        * \sci(`set-ja`);
+        * \sci(`set-en`);
+      }の2つが提供されています。}
+    >
+    +section ?:(`benri-font`) {フォント設定} <
+      +p{テキスト用・タイトル用ともに共通のデザインのフォントを設定します。提供する関数は\listing{
+        * \sci(`set-fonts-han-light`);：源ノ明朝・源ノ角ゴシックの細め
+        * \sci(`set-fonts-han-regular`);：源ノ明朝・源ノ角ゴシックの標準の太さ
+        * \sci(`set-fonts-han-medium`);：源ノ明朝・源ノ角ゴシックの少し太め
+        * \sci(`set-fonts-han-bold`);：源ノ明朝・源ノ角ゴシックの太め
+        * \sci(`set-fonts-han-heavy`);：源ノ明朝・源ノ角ゴシックのとても太め
+        * \sci(`set-fonts-noto-light`);：Notoフォントの細め
+        * \sci(`set-fonts-noto-regular`);：Notoフォントの標準の太さ
+        * \sci(`set-fonts-noto-medium`);：Notoフォントの少し太め
+        * \sci(`set-fonts-noto-bold`);：Notoフォントの太め
+        * \sci(`set-fonts-noto-heavy`);：Notoフォントのとても太め
+      }の10個です。}
+    >
+    +section {紙面デザイン} <
+      +p{タイトルや節見出しなどのデザインを一括で設定する関数です。現在\listing {
+        * \sci(`set-article-line-style`);
+        %* \sci(`set-book-ja-style`);
+        %* \sci(`set-book-en-style`);
+      }が提供されています。以下、それぞれのデザインを紹介します。}
+      +section {\sci(`set-article-line-style`);} <
+        +p{図\ref(`article-line-style-demo1`);・\ref(`article-line-style-demo2`);のようになります。}
+        +figure ?:(`article-line-style-demo1`) {\sci(`set-article-line-style`);のデモ1} <
+          +image ?:(140mm) (`img/article-line-style1.jpg`);
+        >
+        +figure ?:(`article-line-style-demo2`) {\sci(`set-article-line-style`);のデモ2} <
+          +image ?:(140mm) (`img/article-line-style2.jpg`);
+        >
+      >
+      %+section {\sci(`set-book-ja-style`);} <
+      %  +p{図\ref(`book-ja-style-demo1`);・\ref(`book-ja-style-demo2`);のようになります。}
+      %  +figure ?:(`article-book-ja-demo1`) {\sci(`set-book-ja-style`);のデモ1} <
+      %    +image ?:(140mm) (`img/book-ja-style1.jpg`);
+      %  >
+      %  +figure ?:(`article-book-ja-demo2`) {\sci(`set-book-ja-style`);のデモ2} <
+      %    +image ?:(140mm) (`img/book-ja-style2.jpg`);
+      %  >
+      %>
+      %+section {\sci(`set-book-en-style`);} <
+      %  +p{図\ref(`book-en-style-demo1`);・\ref(`book-en-style-demo2`);のようになります。}
+      %  +figure ?:(`article-book-en-demo1`) {\sci(`set-book-en-style`);のデモ1} <
+      %    +image ?:(140mm) (`img/book-ja-style1.jpg`);
+      %  >
+      %  +figure ?:(`article-book-en-demo2`) {\sci(`set-book-en-style`);のデモ2} <
+      %    +image ?:(140mm) (`img/book-en-style2.jpg`);
+      %  >
+      %>
+    >
+  >
   +section {高度なデザイン設定} <>
   +section {このパッケージを利用したクラスファイルの作成} <
     +section {概要} <

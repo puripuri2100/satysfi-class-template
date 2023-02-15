@@ -13,7 +13,7 @@ let-block ctx +image ?:width-opt path =
     | Some(w) -> {\include-image ?:(w) (path);}
   in
   let p = (2pt, 2pt, 2pt, 2pt) in
-  let d = VDecoSet.simple-frame 2pt Color.white Color.black in
+  let d = VDecoSet.simple-frame 1pt Color.black Color.white in
   block-frame-breakable ctx p d (fun ctx -> (
     let ib = inline-fil ++ read-inline ctx it ++ inline-fil in
     line-break true true ctx ib
