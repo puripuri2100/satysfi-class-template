@@ -1505,12 +1505,14 @@ end = struct
         if s#title-page && not (Option.is-none introduction-opt) then
           register-introduction-start-page ()
         else
+          let () = register-cross-reference `introduction-start-page` `1` in
           register-start-page ()
       in
       let hook2 =
         if s#title-page && not (Option.is-none introduction-opt) then
           register-start-page ()
         else
+          let () = register-cross-reference `introduction-start-page` `1` in
           block-nil
       in
       let plus-new-pages =

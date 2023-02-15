@@ -5,7 +5,7 @@
 @require: option
 @require: num-conversion/num-conversion
 
-module ClassExpand : sig
+module ClassTemplateExpand : sig
 
   val set-a0  : ClassTemplate.setting -> ClassTemplate.setting
   val set-a1  : ClassTemplate.setting -> ClassTemplate.setting
