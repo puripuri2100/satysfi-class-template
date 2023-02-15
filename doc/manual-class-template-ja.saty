@@ -286,6 +286,7 @@ document (
       >
       +section {各種タイトルの表示設定} <
         +p{「目次」や「図1」といったタイトルの表示を変更することができます。簡単に変更できる項目は\listing {
+          * 概要
           * 目次
           * 参考文献
           * 図
@@ -295,10 +296,12 @@ document (
           * 付録節番号
           * 付録節番号（目次）
         }です。}
-        +p{目次と参考文献のタイトルはそれぞれ\listing {
+        +p{概要・目次・参考文献のタイトルはそれぞれ\listing {
+          * \sci(`set-abstract-title : inline-text -> setting -> setting`);
           * \sci(`set-toc-title : inline-text -> setting -> setting`);
           * \sci(`set-bib-title : inline-text -> setting -> setting`);
-        }で設定できます。例えば目次タイトルを「Table of Contents」にし参考文献タイトルを「References」に変更したい場合は\sc(```default-setting
+        }で設定できます。例えば概要のタイトルを「Abstract」に、目次タイトルを「Table of Contents」にし参考文献タイトルを「References」に変更したい場合は\sc(```default-setting
+|> set-abstract-title {Abstract}
 |> set-toc-title {Table of Contents}
 |> set-bib-title {References}```);と記述すればよい。}
         +p{図と表はそれぞれ\listing {
@@ -380,7 +383,15 @@ document (
   >
   +section {テーマ関数を使用したデザインの設定} <>
   +section {高度なデザイン設定} <>
-  +section {このパッケージを利用したクラスファイルの作成} <>
+  +section {このパッケージを利用したクラスファイルの作成} <
+    +section {概要} <
+      +p{このクラスファイルのデザイン変更機能を駆使することで、独自のクラスファイルを作成することができます。しかし、ただ設定変更関数を作成するだけではユーザーからこのクラスファイルの機能が透けてしまい、思わぬ使用方法をされる恐れがあります。そのため、適切に実装を隠蔽する必要があります。ここではそのようなときのための実装方法の指針を説明します。}
+    >
+    +section {実装の隠蔽} <>
+    +section {設定の作成} <>
+    +section {独自コマンドの定義} <>
+    +section {必要なコマンド・関数の再公開} <>
+  >
   +section {バグ報告・修正や機能追加の提案}<
     +p{このパッケージは\listing {
       * \url(`https://github.com/puripuri2100/satysfi-class-template`);
