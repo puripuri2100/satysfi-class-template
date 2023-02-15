@@ -14,6 +14,8 @@ module ClassTemplate : sig
   type position
   val top : position
   val here : position
+  val page: position
+  val bottom : position
 
   type setting
 
@@ -56,6 +58,8 @@ module ClassTemplate : sig
   val set-outer-margin : length -> setting -> setting
   val set-top-margin : length -> setting -> setting
   val set-bottom-margin : length -> setting -> setting
+  val set-float-pad-top-ratio : float -> setting -> setting
+  val set-float-pad-bottom-ratio : float -> setting -> setting
   val set-multicolumn : int -> setting -> setting
   val set-columnsep : length -> setting -> setting
   val set-indent-length : (context -> int -> length) -> setting -> setting
@@ -157,9 +161,13 @@ end = struct
   type position =
     | Top
     | Here
+    | Page
+    | Bottom
 
   let top = Top
   let here = Here
+  let page = Page
+  let bottom = Bottom
 
   let default-title-deco ctx is-title-page title-f author-f date-f-opt abstract-f-opt =
     let fs = get-font-size ctx in
@@ -395,6 +403,8 @@ end = struct
     outer-margin  : length;
     top-margin    : length;
     bottom-margin : length;
+    float-pad-top-ratio : float;
+    float-pad-bottom-ratio : float;
     multicolumn   : int;
     columnsep     : length;
     indent-length : context -> int -> length;
@@ -467,6 +477,8 @@ end = struct
     outer-margin  = (210mm -' (12pt *' 40.0)) *' 0.5;
     top-margin    = 25mm;
     bottom-margin = 25mm;
+    float-pad-top-ratio = 2.5;
+    float-pad-bottom-ratio = 2.5;
     multicolumn   = 1;
     columnsep     = 20pt;
     indent-length = fun ctx _ -> (
@@ -641,6 +653,12 @@ end = struct
 
   let set-bottom-margin bottom-margin setting =
     (| setting with bottom-margin = bottom-margin; |)
+
+  let set-float-pad-top-ratio r setting =
+    (| setting with float-pad-top-ratio = r; |)
+
+  let set-float-pad-bottom-ratio r setting =
+    (| setting with float-pad-bottom-ratio = r; |)
 
   let set-multicolumn multicolumn setting =
     (| setting with multicolumn = multicolumn; |)
@@ -1059,21 +1077,50 @@ end = struct
   % 浮動図の出力を決める
   % 出力する部分のblock-boxesと新しいfloat-boxesの値を返す
   let break-float-boxes now-page-num text-height float-boxes =
-    let-rec sub bb float-boxes =
+    let top-pad = (font-size-normal ()) *' (!setting-ref)#float-pad-top-ratio in
+    let bottom-pad = (font-size-normal ()) *' (!setting-ref)#float-pad-bottom-ratio in
+    let-rec sub bb-top bb-bottom float-boxes =
       match float-boxes with
-      | [] -> (bb, [])
-      | (pageno, float-box)::xs -> (
+      | [] -> (false, bb-top, bb-bottom, [])
+      | (pageno, float-box, position)::xs -> (
         if pageno >= now-page-num then
-          (bb, List.reverse float-boxes)
+          (false, bb-top, bb-bottom, List.reverse float-boxes)
         else
-          let new-bb = bb +++ float-box in
-          if get-natural-length new-bb >' text-height then
-            (bb, List.reverse float-boxes)
-          else
-            sub new-bb xs
+          match position with
+          | Page -> (
+            if
+              get-natural-length bb-top >' 1pt
+              ||
+              get-natural-length bb-bottom >' 1pt
+            then
+              (false, bb-top, bb-bottom, List.reverse float-boxes)
+            else
+              (true, float-box, block-nil, List.reverse xs)
+          )
+          | Top -> (
+            let new-bb = bb-top +++ float-box in
+            let len =
+              get-natural-length (new-bb +++ bb-bottom) +' top-pad +' bottom-pad
+            in
+            if len >' text-height then
+              (false, bb-top, bb-bottom, List.reverse float-boxes)
+            else
+              sub new-bb bb-bottom xs
+          )
+          | Bottom -> (
+            let new-bb = bb-bottom +++ float-box in
+            let len =
+              get-natural-length (bb-top +++ new-bb) +' top-pad +' bottom-pad
+            in
+            if len >' text-height then
+              (false, bb-top, bb-bottom, List.reverse float-boxes)
+            else
+              sub bb-top new-bb xs
+          )
+          | _ -> sub bb-top bb-bottom xs
       )
     in
-    sub block-nil (List.reverse float-boxes)
+    sub block-nil block-nil (List.reverse float-boxes)
 
   % section関係のフック
   let-mutable is-appendix <- false
@@ -1102,7 +1149,8 @@ end = struct
     in
     let () = shifts-ref <- seps in
     let text-height = s#height-page -' (s#top-margin +' s#bottom-margin) in
-    let top-pad = 20pt in
+    let top-pad = font-size-normal () *' s#float-pad-top-ratio in
+    let bottom-pad = font-size-normal () *' s#float-pad-bottom-ratio in
     let ctx = make-ctx text-width in
 
     % ページサイズ
@@ -1222,6 +1270,9 @@ end = struct
       let introduction-start-page = get-introduction-start-page () in
       let start-page = get-start-page () in
       let ctx = make-ctx all-text-width in
+      let (is-float-page, bb-top, bb-bottom, lst) =
+        break-float-boxes pbinfo#page-number (text-height -' top-pad) !float-boxes
+      in
       let page-num =
         if pbinfo#page-number < introduction-start-page then
           pbinfo#page-number
@@ -1259,8 +1310,7 @@ end = struct
             s#header ctx pbinfo#page-number page-num page-num-s
       in
       let header-height = get-natural-length header in
-      let (bb, lst) = break-float-boxes pbinfo#page-number (text-height -' top-pad) !float-boxes in
-      let float-len =
+      let float-top-len =
         if s#show-title && pbinfo#page-number <= title-page-counter then
           let title-opt = List.nth (pbinfo#page-number - 1) title-block-lst in
           match title-opt with
@@ -1276,13 +1326,39 @@ end = struct
             get-natural-length (block-skip space +++ bb)
           )
         else
-          get-natural-length bb
+          get-natural-length bb-top
       in
+      let footer =
+        let ctx = set-paragraph-margin 0pt 0pt ctx in
+        if
+          List.any (fun i -> i == pbinfo#page-number) !ignore-header-footer-lst
+          ||
+          not s#show-header
+          ||
+          pbinfo#page-number < introduction-start-page
+        then
+          block-nil
+        else
+          if pbinfo#page-number < start-page then
+            let page-num-s = s#introduction-page-num page-num in
+            s#introduction-header ctx pbinfo#page-number page-num page-num-s
+          else
+            let page-num-s = s#page-num page-num in
+            s#footer ctx pbinfo#page-number page-num page-num-s
+      in
+      let footer-height = get-natural-length footer in
+      let float-bottom-len = get-natural-length bb-bottom in
       let top-pad =
-        if float-len +' header-height <' 0.01pt then
+        if float-top-len +' header-height <' 0.01pt then
           0pt
         else
           top-pad
+      in
+      let bottom-pad =
+        if (float-bottom-len +' footer-height) <' 0.01pt then
+          0pt
+        else
+          bottom-pad
       in
       let left-margin =
         if s#is-twoside then
@@ -1293,9 +1369,23 @@ end = struct
         else
           s#inner-margin
       in
+      let text-height =
+        if is-float-page then
+          0pt
+        else
+          text-height -'
+            header-height -' float-top-len -' top-pad -'
+            footer-height -' float-bottom-len -' bottom-pad
+      in
+      let text-origin =
+        if is-float-page then
+          (left-margin, s#top-margin +' header-height +' text-height)
+        else
+          (left-margin, s#top-margin +' header-height +' float-top-len +' top-pad)
+      in
       (|
-        text-height = text-height -' header-height -' float-len -' top-pad;
-        text-origin = (left-margin, s#top-margin +' header-height +' float-len +' top-pad);
+        text-height = text-height;
+        text-origin = text-origin;
       |)
     in
     % ヘッダーとフッターの設定
@@ -1322,45 +1412,52 @@ end = struct
             (!setting-ref)#page-num page-num
       in
       let ctx = set-paragraph-margin 0pt 0pt ctx in
+      let header-origin =
+        if
+          List.any (fun i -> i == pbinfo#page-number) !ignore-header-footer-lst
+          ||
+          not s#show-header
+          ||
+          pbinfo#page-number < introduction-start-page
+        then
+          block-nil
+        else
+          if pbinfo#page-number < start-page then
+            let page-num-s = s#introduction-page-num page-num in
+            s#introduction-header ctx pbinfo#page-number page-num page-num-s
+          else
+            let page-num-s = s#page-num page-num in
+            s#header ctx pbinfo#page-number page-num page-num-s
+      in
+      let (float-top-bb, float-bottom-bb) =
+        if s#show-title && pbinfo#page-number <= title-page-counter then
+          let title-opt = List.nth (pbinfo#page-number - 1) title-block-lst in
+          match title-opt with
+          | None -> (block-nil, block-nil)
+          | Some(f, bb) -> (
+            let h = get-natural-length bb in
+            let space =
+              if s#title-page then
+                (text-height -' h) *' f
+              else
+                0pt
+            in
+            (block-skip space +++ bb, block-nil)
+          )
+        else
+          let (is-float-page, bb-top, bb-bottom, new-float-boxes) = break-float-boxes pbinfo#page-number (text-height -' top-pad) !float-boxes in
+          let () = float-boxes <- new-float-boxes in
+          if is-float-page then
+            let margin = text-height -' top-pad -' (get-natural-length bb-top) in
+            (block-skip (margin *' 0.45) +++ bb-top, bb-bottom)
+          else
+            (bb-top, bb-bottom)
+      in
       let header =
-        let origin =
-          if
-            List.any (fun i -> i == pbinfo#page-number) !ignore-header-footer-lst
-            ||
-            not s#show-header
-            ||
-            pbinfo#page-number < introduction-start-page
-          then
-            block-nil
-          else
-            if pbinfo#page-number < start-page then
-              let page-num-s = s#introduction-page-num page-num in
-              s#introduction-header ctx pbinfo#page-number page-num page-num-s
-            else
-              let page-num-s = s#page-num page-num in
-              s#header ctx pbinfo#page-number page-num page-num-s
-        in
-        let float-bb =
-          if s#show-title && pbinfo#page-number <= title-page-counter then
-            let title-opt = List.nth (pbinfo#page-number - 1) title-block-lst in
-            match title-opt with
-            | None -> block-nil
-            | Some(f, bb) -> (
-              let h = get-natural-length bb in
-              let space =
-                if s#title-page then
-                  (text-height -' h) *' f
-                else
-                  0pt
-              in
-              block-skip space +++ bb
-            )
-          else
-            let (bb, new-float-boxes) = break-float-boxes pbinfo#page-number (text-height -' top-pad) !float-boxes in
-            let () = float-boxes <- new-float-boxes in
-            bb
-        in
-        origin +++ float-bb
+        if get-natural-length (header-origin +++ float-top-bb) <' 0.01pt then
+          header-origin
+        else
+          header-origin +++ float-top-bb
       in
       let left-margin =
         if s#is-twoside then
@@ -1389,7 +1486,18 @@ end = struct
             let page-num-s = s#page-num page-num in
             s#footer ctx pbinfo#page-number page-num page-num-s
       in
-      let footer-origin = (left-margin, s#height-page -' s#bottom-margin) in
+      let footer =
+        if get-natural-length (footer +++ float-bottom-bb) <' 0.01pt then
+          footer
+        else
+          float-bottom-bb +++ footer
+      in
+      let footer-origin =
+        if get-natural-length (footer +++ float-bottom-bb) <' 0.01pt then
+          (left-margin, s#height-page -' s#bottom-margin)
+        else
+          (left-margin, s#height-page -' s#bottom-margin -' get-natural-length float-bottom-bb -' bottom-pad)
+      in
       (|
         header-content = header;
         header-origin = header-origin;
@@ -1948,7 +2056,17 @@ end = struct
     match position-opt with
     | Some(Top) -> (
       hook-page-break-block (fun pbinfo _ -> (
-        float-boxes <- (pbinfo#page-number, bb) :: !float-boxes
+        float-boxes <- (pbinfo#page-number, bb, Top) :: !float-boxes
+      )) +++ block-skip 0pt
+    )
+    | Some(Bottom) -> (
+      hook-page-break-block (fun pbinfo _ -> (
+        float-boxes <- (pbinfo#page-number, bb, Bottom) :: !float-boxes
+      )) +++ block-skip 0pt
+    )
+    | Some(Page) -> (
+      hook-page-break-block (fun pbinfo _ -> (
+        float-boxes <- (pbinfo#page-number, bb, Page) :: !float-boxes
       )) +++ block-skip 0pt
     )
     | _ -> bb
@@ -1988,7 +2106,17 @@ end = struct
     match position-opt with
     | Some(Top) -> (
       hook-page-break-block (fun pbinfo _ -> (
-        float-boxes <- (pbinfo#page-number, bb) :: !float-boxes
+        float-boxes <- (pbinfo#page-number, bb, Top) :: !float-boxes
+      )) +++ block-skip 0pt
+    )
+    | Some(Bottom) -> (
+      hook-page-break-block (fun pbinfo _ -> (
+        float-boxes <- (pbinfo#page-number, bb, Bottom) :: !float-boxes
+      )) +++ block-skip 0pt
+    )
+    | Some(Page) -> (
+      hook-page-break-block (fun pbinfo _ -> (
+        float-boxes <- (pbinfo#page-number, bb, Page) :: !float-boxes
       )) +++ block-skip 0pt
     )
     | _ -> bb

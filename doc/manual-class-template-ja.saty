@@ -92,7 +92,12 @@ document (
       +section {図・表} <
         +p{図環境は\sci(`+figure : [string?; position?; inline-text; block-text] block-cmd`);というコマンドで、表環境は\sci(`+table : [string?; position?; inline-text; block-text] block-cmd`);というコマンドで提供されます。図の読み込み機能や具体的な表組機能は提供されていないため、imageパッケージやeasytableパッケージなどのそれ専用のパッケージを使用してこの図・表環境に入力してください。}
         +p{どちらも使い方は同じです。必須引数は2つで、1つ目がキャプションに、2つ目が具体的な画像や表のブロックになります。}
-        +p{オプション引数は2つで、1つ目が相互参照用のラベルで、2つ目が配置位置の指定になります。配置位置の指定には\sci(`top`);と\sci(`here`);の2種類の値が使えます。\sci(`top`);を指定するとページの上部に浮動図として配置され、\sci(`here`);を指定するとその場に図が出力されます。}
+        +p{オプション引数は2つで、1つ目が相互参照用のラベルで、2つ目が配置位置の指定になります。配置位置の指定には\listing {
+          * \sci(`here`);：その場出力
+          * \sci(`top`);：ページの上部に配置される浮動図
+          * \sci(`bottom`);：ページの下部に配置される浮動図
+          * \sci(`page`);：【実験的機能】一ページ丸々使って出力される浮動図
+        }の4種類の値が使えます。}
         +p{例えばラベルを\sci(`test fig`);にしその場に出力したい場合には\sc(``+figure ?:(`test fig`) ?:(here) {テスト図} <>``);のように記述します。}
         +p{浮動図とする場合には\sc(``+figure ?:(`test fig`) ?:(top) {テスト図} <>``);となります。}
       >
@@ -436,28 +441,28 @@ in`);のように書いて事前に展開していると良いでしょう。}
       }が提供されています。以下、それぞれのデザインを紹介します。}
       +section {\sci(`set-article-line-style`);} <
         +p{図\ref(`article-line-style-demo1`);・\ref(`article-line-style-demo2`);のようになります。}
-        +figure ?:(`article-line-style-demo1`) {\sci(`set-article-line-style`);のデモ1} <
+        +figure ?:(`article-line-style-demo1`) ?:(bottom) {\sci(`set-article-line-style`);のデモ1} <
           +image ?:(140mm) (`img/article-line-style1.jpg`);
         >
-        +figure ?:(`article-line-style-demo2`) {\sci(`set-article-line-style`);のデモ2} <
+        +figure ?:(`article-line-style-demo2`) ?:(bottom) {\sci(`set-article-line-style`);のデモ2} <
           +image ?:(140mm) (`img/article-line-style2.jpg`);
         >
       >
       %+section {\sci(`set-book-ja-style`);} <
       %  +p{図\ref(`book-ja-style-demo1`);・\ref(`book-ja-style-demo2`);のようになります。}
-      %  +figure ?:(`article-book-ja-demo1`) {\sci(`set-book-ja-style`);のデモ1} <
+      %  +figure ?:(`article-book-ja-demo1`) ?:(top) {\sci(`set-book-ja-style`);のデモ1} <
       %    +image ?:(140mm) (`img/book-ja-style1.jpg`);
       %  >
-      %  +figure ?:(`article-book-ja-demo2`) {\sci(`set-book-ja-style`);のデモ2} <
+      %  +figure ?:(`article-book-ja-demo2`) ?:(top) {\sci(`set-book-ja-style`);のデモ2} <
       %    +image ?:(140mm) (`img/book-ja-style2.jpg`);
       %  >
       %>
       %+section {\sci(`set-book-en-style`);} <
       %  +p{図\ref(`book-en-style-demo1`);・\ref(`book-en-style-demo2`);のようになります。}
-      %  +figure ?:(`article-book-en-demo1`) {\sci(`set-book-en-style`);のデモ1} <
+      %  +figure ?:(`article-book-en-demo1`) ?:(top) {\sci(`set-book-en-style`);のデモ1} <
       %    +image ?:(140mm) (`img/book-ja-style1.jpg`);
       %  >
-      %  +figure ?:(`article-book-en-demo2`) {\sci(`set-book-en-style`);のデモ2} <
+      %  +figure ?:(`article-book-en-demo2`) ?:(top) {\sci(`set-book-en-style`);のデモ2} <
       %    +image ?:(140mm) (`img/book-en-style2.jpg`);
       %  >
       %>
