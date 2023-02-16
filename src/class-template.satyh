@@ -7,6 +7,8 @@
 @require: base/list-ext
 @require: base/int
 @require: base/float
+@require: base/length
+@require: base/ord
 @require: num-conversion/num-conversion
 
 module ClassTemplate : sig
@@ -16,6 +18,12 @@ module ClassTemplate : sig
   val here : position
   val page: position
   val bottom : position
+
+
+  type title-position
+  val title-left : title-position
+  val title-center : title-position
+  val title-right : title-position
 
   type setting
 
@@ -32,9 +40,11 @@ module ClassTemplate : sig
   val set-subject : string -> setting -> setting
   val set-keywords : string list -> setting -> setting
   val set-title-font-size-ratio : float -> setting -> setting
+  val set-title-position : title-position -> setting -> setting
   val set-author-font-size-ratio : float -> setting -> setting
+  val set-author-position : title-position -> setting -> setting
   val set-date-font-size-ratio : float -> setting -> setting
-  val set-title-deco : (context -> bool -> (context -> block-boxes) -> (context -> block-boxes) -> (context -> block-boxes) option -> (context -> block-boxes) option -> (float * block-boxes) list) -> setting -> setting
+  val set-title-deco : (context -> bool -> inline-boxes -> inline-boxes -> inline-boxes option -> (context -> block-boxes) option -> (float * block-boxes) list) -> setting -> setting
   val set-show-title : bool -> setting -> setting
   val set-show-toc : bool -> setting -> setting
   val set-show-header : bool -> setting -> setting
@@ -157,6 +167,16 @@ end = struct
     repeat-inline n ib
 
 
+  let length-ord =
+    Ord.make(fun l1 l2 -> ( Length.(
+      if l1 == l2 then
+        Eq
+      else if l1 < l2 then
+        Lt
+      else
+        Gt
+    )))
+
 
   type position =
     | Top
@@ -169,41 +189,59 @@ end = struct
   let page = Page
   let bottom = Bottom
 
-  let default-title-deco ctx is-title-page title-f author-f date-f-opt abstract-f-opt =
+
+  type title-position =
+    | TitleLeft
+    | TitleCenter
+    | TitleRight
+
+  let title-left   = TitleLeft
+  let title-center = TitleCenter
+  let title-right  = TitleRight
+
+
+  let default-title-deco ctx is-title-page title author date-opt abstract-f-opt =
     let fs = get-font-size ctx in
+    let t-ctx =
+      ctx |> set-paragraph-margin 0pt 0pt
+          |> set-min-paragraph-ascender-and-descender 0pt 0pt
+    in
+    let title-bb =
+      line-break true true t-ctx (inline-fil ++ title ++ inline-fil)
+    in
+    let author-bb =
+      line-break true true t-ctx (inline-fil ++ author ++ inline-fil)
+    in
+    let date-bb =
+      match date-opt with
+      | None -> block-nil
+      | Some(ib) -> (
+        block-skip fs +++
+        line-break true true t-ctx (inline-fil ++ ib ++ inline-fil)
+      )
+    in
     if is-title-page then
       let main =
-        title-f ctx +++
+        title-bb +++
         block-skip (fs *' 2.0) +++
-        author-f ctx
-      in
-      let date =
-        match date-f-opt with
-        | None -> block-nil
-        | Some(f) -> block-skip fs +++ f ctx
+        author-bb +++ date-bb
       in
       match abstract-f-opt with
-      | None -> [(0.4, main +++ date)]
-      | Some(f) -> [(0.4, main +++ date); (0.3, f ctx)]
+      | None -> [(0.4, main)]
+      | Some(f) -> [(0.4, main); (0.3, f ctx)]
     else
-      let date =
-        match date-f-opt with
-        | None -> block-nil
-        | Some(f) -> block-skip fs +++ f ctx
-      in
       let abstract =
         match abstract-f-opt with
         | None -> block-nil
-        | Some(f) -> block-skip fs +++ f ctx
+        | Some(f) -> block-skip (fs *' 2.5) +++ f ctx
       in
       [(
         0.45,
-        title-f ctx +++
+        title-bb +++
         block-skip (fs *' 2.5) +++
-        author-f ctx +++
+        author-bb +++
         block-skip (fs *' 0.5) +++
-        date +++
-        block-skip (fs *' 0.5) +++
+        date-bb +++
         abstract +++
         block-skip (fs *' 1.0)
       )]
@@ -379,9 +417,11 @@ end = struct
     subject       : string option;
     keywords      : string list;
     title-font-size-ratio  : float;
+    title-position         : title-position;
     author-font-size-ratio : float;
+    author-position        : title-position;
     date-font-size-ratio   : float;
-    title-deco    : context -> bool -> (context -> block-boxes) -> (context -> block-boxes) -> (context -> block-boxes) option -> (context -> block-boxes) option -> (float * block-boxes) list;
+    title-deco    : context -> bool -> inline-boxes -> inline-boxes -> inline-boxes option -> (context -> block-boxes) option -> (float * block-boxes) list;
     show-title    : bool;
     show-toc      : bool;
     show-footer   : bool;
@@ -453,7 +493,9 @@ end = struct
     subject       = None;
     keywords      = [];
     title-font-size-ratio  = 1.6;
+    title-position         = title-center;
     author-font-size-ratio = 1.3;
+    author-position        = title-center;
     date-font-size-ratio   = 1.3;
     title-deco    = default-title-deco;
     show-title    = true;
@@ -576,8 +618,14 @@ end = struct
   let set-title-font-size-ratio ratio setting =
     (| setting with title-font-size-ratio = ratio; |)
 
+  let set-title-position pos setting =
+    (| setting with title-position = pos; |)
+
   let set-author-font-size-ratio ratio setting =
     (| setting with author-font-size-ratio = ratio; |)
+
+  let set-author-position pos setting =
+    (| setting with author-position = pos; |)
 
   let set-date-font-size-ratio ratio setting =
     (| setting with date-font-size-ratio = ratio; |)
@@ -1157,7 +1205,7 @@ end = struct
     let page = UserDefinedPaper(s#width-page, s#height-page) in
 
 
-    let title-block ctx =
+    let title-block =
       let fs = font-size-normal () *' (!setting-ref)#title-font-size-ratio in
       let joinf i bb1 bb2 =
         if i <= 0 then
@@ -1166,22 +1214,37 @@ end = struct
           bb1 +++ block-skip (fs *' (!setting-ref)#headline-leading-ratio) +++ bb2
       in
       let ctx =
-        ctx |> set-font-size fs
-            |> set-headline-font
-            |> set-paragraph-margin 0pt 0pt
-            |> set-min-paragraph-ascender-and-descender 0pt 0pt
+        make-ctx all-text-width
+        |> set-font-size fs
+        |> set-headline-font
+        |> set-paragraph-margin 0pt 0pt
+        |> set-min-paragraph-ascender-and-descender 0pt 0pt
       in
-      let f it =
-        line-break false false ctx (
-          inline-fil ++ read-inline ctx it ++ inline-fil
-        )
+      let f ctx ib =
+        let ib =
+          match s#title-position with
+          | TitleLeft -> ib ++ inline-fil
+          | TitleCenter -> inline-fil ++ ib ++ inline-fil
+          | TitleRight -> inline-fil ++ ib
+        in
+        line-break false false ctx ib
       in
-      s#title
-      |> List.map f
-      |> List.fold-lefti joinf block-nil
+      let ib-lst = List.map (read-inline ctx) s#title in
+      let max-width-opt =
+        ib-lst
+        |> List.map get-natural-width
+        |> List.max length-ord
+      in
+      match max-width-opt with
+      | None -> inline-nil
+      | Some(w) -> embed-block-bottom ctx w (fun ctx -> (
+        ib-lst
+        |> List.map (f ctx)
+        |> List.fold-lefti joinf block-nil
+      ))
     in
 
-    let author-block ctx =
+    let author-block =
       let fs = font-size-normal () *' (!setting-ref)#author-font-size-ratio in
       let joinf i bb1 bb2 =
         if i <= 0 then
@@ -1189,38 +1252,50 @@ end = struct
         else
           bb1 +++ block-skip (fs *' (!setting-ref)#headline-leading-ratio) +++ bb2
       in
-      let f it =
-        let ctx =
-          ctx |> set-font-size fs
-              |> set-headline-font
-              |> set-paragraph-margin 0pt 0pt
-              |> set-min-paragraph-ascender-and-descender 0pt 0pt
-        in
-        line-break false false ctx (
-          inline-fil ++ read-inline ctx it ++ inline-fil
-        )
+      let ctx =
+        make-ctx all-text-width
+        |> set-font-size fs
+        |> set-headline-font
+        |> set-paragraph-margin 0pt 0pt
+        |> set-min-paragraph-ascender-and-descender 0pt 0pt
       in
-      s#author
-      |> List.map f
-      |> List.fold-lefti joinf block-nil
+      let f ctx ib =
+        let ib =
+          match s#author-position with
+          | TitleLeft -> ib ++ inline-fil
+          | TitleCenter -> inline-fil ++ ib ++ inline-fil
+          | TitleRight -> inline-fil ++ ib
+        in
+        line-break false false ctx ib
+      in
+      let ib-lst = List.map (read-inline ctx) s#author in
+      let max-width-opt =
+        ib-lst
+        |> List.map get-natural-width
+        |> List.max length-ord
+      in
+      match max-width-opt with
+      | None -> inline-nil
+      | Some(w) -> embed-block-bottom ctx w (fun ctx -> (
+        ib-lst
+        |> List.map (f ctx)
+        |> List.fold-lefti joinf block-nil
+      ))
     in
 
     let date-block =
       match s#date with
       | None -> None
       | Some(date) ->
-        Some(fun ctx -> (
+        Some(
           let fs = font-size-normal () *' (!setting-ref)#date-font-size-ratio in
           let ctx =
-            ctx |> set-font-size fs
-                |> set-headline-font
-                |> set-paragraph-margin 0pt 0pt
-                |> set-min-paragraph-ascender-and-descender 0pt 0pt
+            make-ctx all-text-width
+            |> set-font-size fs
+            |> set-headline-font
           in
-          line-break false false ctx (
-            inline-fil ++ read-inline ctx date ++ inline-fil
-          )
-        ))
+          read-inline ctx date
+        )
     in
 
     let abstract-block =

@@ -76,9 +76,9 @@ module ClassTemplateExpand : sig
   val article-line-style-title-deco :
     context ->
     bool ->
-    (context -> block-boxes) ->
-    (context -> block-boxes) ->
-    (context -> block-boxes) option ->
+    inline-boxes ->
+    inline-boxes ->
+    inline-boxes option ->
     (context -> block-boxes) option ->
     (float * block-boxes) list
   val article-line-style-section-deco : context -> int -> inline-boxes ?-> inline-boxes -> inline-boxes -> block-boxes
@@ -89,9 +89,9 @@ module ClassTemplateExpand : sig
   %val book-style-title-deco :
   %  context ->
   %  bool ->
-  %  (context -> block-boxes) ->
-  %  (context -> block-boxes) ->
-  %  (context -> block-boxes) option ->
+  %  inline-boxes ->
+  %  inline-boxes ->
+  %  inline-boxes option ->
   %  (context -> block-boxes) option ->
   %  (float * block-boxes) list
   val set-book-ja-style : ClassTemplate.setting -> ClassTemplate.setting
@@ -461,8 +461,11 @@ end = struct
     (decoS, decoH, decoM, decoT)
 
 
-  let article-line-style-title-deco ctx is-title-page title-f author-f date-f-opt abstract-f-opt =
+  let article-line-style-title-deco ctx is-title-page title author date-opt abstract-f-opt =
     let fs = get-font-size ctx in
+    let f ctx ib =
+      line-break true true ctx (inline-fil ++ ib ++ inline-fil)
+    in
     let title-bb =
       let p1 = fs *' 2.0 in
       let p2 = fs in
@@ -485,13 +488,13 @@ end = struct
         in
         let gap1 = block-skip (fs *' 1.0) in
         let gap2 = block-skip (fs *' 0.8) in
-        let author = author-f ctx in
-        if get-natural-length author <' 0.01pt && Option.is-none date-f-opt then
-          gap1 +++ title-f ctx +++ gap1
+        let author = f ctx author in
+        if get-natural-length author <' 0.01pt && Option.is-none date-opt then
+          gap1 +++ (f ctx title) +++ gap1
         else
-          let bb = gap1 +++ title-f ctx +++ gap1 +++ line-bb +++ gap1 +++ author in
-          match date-f-opt with
-          | Some(f) -> bb +++ gap2 +++ f ctx +++ gap1
+          let bb = gap1 +++ (f ctx title) +++ gap1 +++ line-bb +++ gap1 +++ author in
+          match date-opt with
+          | Some(ib) -> bb +++ gap2 +++ (f ctx ib) +++ gap1
           | None -> bb +++ gap1
       ))
     in
