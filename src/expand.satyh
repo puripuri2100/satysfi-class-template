@@ -603,10 +603,10 @@ end = struct
 
   let set-book-ja-style s =
     s
+    |> set-ja
     |> set-multicolumn 1
     |> set-section-num-fun book-section-num-fun
     |> set-toc-num-fun (fun l -> (if List.length l <= 3 then Some(book-section-num-fun l) else None))
-    |> set-appendix-title `付録`
     |> set-appendix-num-fun book-appendix-num-fun
     |> set-appendix-toc-num-fun (fun l -> (if List.length l <= 3 then Some(book-appendix-num-fun l) else None))
     |> set-toc-headline-font-depth 2
@@ -621,10 +621,10 @@ end = struct
 
   let set-book-en-style s =
     s
+    |> set-en
     |> set-multicolumn 1
     |> set-section-num-fun book-section-num-fun
     |> set-toc-num-fun (fun l -> (if List.length l <= 3 then Some(book-section-num-fun l) else None))
-    |> set-appendix-title `Appendix`
     |> set-appendix-num-fun book-appendix-num-fun
     |> set-appendix-toc-num-fun (fun l -> (if List.length l <= 3 then Some(book-appendix-num-fun l) else None))
     |> set-toc-headline-font-depth 2
