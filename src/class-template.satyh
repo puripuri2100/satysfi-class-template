@@ -10,6 +10,8 @@
 @require: base/length
 @require: base/ord
 @require: num-conversion/num-conversion
+@require: json/json
+@require: base/result
 
 module ClassTemplate : sig
 
@@ -1095,6 +1097,30 @@ end = struct
       ignore-header-footer-lst <- pbinfo#page-number :: !ignore-header-footer-lst
     ))
 
+  let register-ignore-header-footer-lst () =
+    !ignore-header-footer-lst
+    |> List.map (fun i -> JsonInt i)
+    |> (fun l -> JsonArray l)
+    |> JSON.to-string
+    |> register-cross-reference `ignore-header-footer-lst`
+
+  let get-ignore-header-footer-lst () =
+    match get-cross-reference `ignore-header-footer-lst` with
+    | None -> []
+    | Some(s) -> (
+      match JSON.parse s with
+      | Ok(JsonArray(l)) -> (
+        l
+        |> List.map JSON.as-int
+        |> List.map (fun v -> (
+          match v with
+          | Some(i) -> i
+          | None -> abort-with-message `error`
+        ))
+      )
+      | _ -> abort-with-message `error`
+    )
+
 
   let-rec break-page-n n column =
     if n == 0 then
@@ -1381,7 +1407,7 @@ end = struct
       let header =
         let ctx = set-paragraph-margin 0pt 0pt ctx in
         if
-          List.any (fun i -> i == pbinfo#page-number) !ignore-header-footer-lst
+          List.any (fun i -> i == pbinfo#page-number) (get-ignore-header-footer-lst ())
           ||
           not s#show-header
           ||
@@ -1423,7 +1449,7 @@ end = struct
       let footer =
         let ctx = set-paragraph-margin 0pt 0pt ctx in
         if
-          List.any (fun i -> i == pbinfo#page-number) !ignore-header-footer-lst
+          List.any (fun i -> i == pbinfo#page-number) (get-ignore-header-footer-lst ())
           ||
           not s#show-footer
           ||
@@ -1511,7 +1537,7 @@ end = struct
       let ctx = set-paragraph-margin 0pt 0pt ctx in
       let header-origin =
         if
-          List.any (fun i -> i == pbinfo#page-number) !ignore-header-footer-lst
+          List.any (fun i -> i == pbinfo#page-number) (get-ignore-header-footer-lst ())
           ||
           not s#show-header
           ||
@@ -1573,7 +1599,7 @@ end = struct
       let header-origin = (left-margin, s#top-margin) in
       let footer =
         if
-          List.any (fun i -> i == pbinfo#page-number) !ignore-header-footer-lst
+          List.any (fun i -> i == pbinfo#page-number) (get-ignore-header-footer-lst ())
           ||
           not s#show-footer
           ||
@@ -1700,6 +1726,8 @@ end = struct
 
     let bb-last =
       register-last-page ()
+      +++
+      hook-page-break-block (fun _ _ -> register-ignore-header-footer-lst ())
       +++
       hook-page-break-block (fun _ _ -> (is-last-page <- true))
     in

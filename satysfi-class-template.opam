@@ -19,6 +19,7 @@ depends: [
   "satysfi-dist"
   "satysfi-base" { >= "1.4.0" & < "2.0.0"}
   "satysfi-num-conversion" { >= "0.1.4" & < "1.0.0"}
+  "satysfi-json" { >= "1.1.3" & < "2.0.0"}
 ]
 build: [
   ["satyrographos" "opam" "build"
