@@ -50,8 +50,8 @@ module ClassTemplate : sig
   val set-show-header : bool -> setting -> setting
   val set-show-footer : bool -> setting -> setting
   val set-page-num : (int -> string) -> setting -> setting
-  val set-header : (context -> int -> int -> string -> block-boxes) -> setting -> setting
-  val set-footer : (context -> int -> int -> string -> block-boxes) -> setting -> setting
+  val set-header : (context -> int -> int -> string -> string -> block-boxes) -> setting -> setting
+  val set-footer : (context -> int -> int -> string -> string -> block-boxes) -> setting -> setting
   val set-title-page : bool -> setting -> setting
   val set-bib-page : bool -> setting -> setting
   val set-normal-font-size : length -> setting -> setting
@@ -77,8 +77,8 @@ module ClassTemplate : sig
   val set-abstract-title : inline-text -> setting -> setting
   val set-introduction : block-text -> setting -> setting
   val set-introduction-page-num : (int -> string) -> setting -> setting
-  val set-introduction-header : (context -> int -> int -> string -> block-boxes) -> setting -> setting
-  val set-introduction-footer : (context -> int -> int -> string -> block-boxes) -> setting -> setting
+  val set-introduction-header : (context -> int -> int -> string -> string -> block-boxes) -> setting -> setting
+  val set-introduction-footer : (context -> int -> int -> string -> string -> block-boxes) -> setting -> setting
   val set-thanks-marks : string list -> setting -> setting
   val set-footnote-mark : inline-text -> setting -> setting
   val set-text-font-cjk   : (string * float * float) -> setting -> setting
@@ -247,7 +247,7 @@ end = struct
       )]
 
 
-  let default-footer ctx _ _ n =
+  let default-footer ctx _ _ n _ =
     let n =
       n
       |> embed-string
@@ -427,8 +427,8 @@ end = struct
     show-footer   : bool;
     show-header   : bool;
     page-num      : int -> string;
-    header        : context -> int -> int -> string -> block-boxes;
-    footer        : context -> int -> int -> string -> block-boxes;
+    header        : context -> int -> int -> string -> string -> block-boxes;
+    footer        : context -> int -> int -> string -> string -> block-boxes;
     title-page    : bool;
     bib-page      : bool;
     normal-font-size : length;
@@ -452,8 +452,8 @@ end = struct
     abstract-title : inline-text;
     introduction  : block-text option;
     introduction-page-num : int -> string;
-    introduction-header   : context -> int -> int -> string -> block-boxes;
-    introduction-footer   : context -> int -> int -> string -> block-boxes;
+    introduction-header   : context -> int -> int -> string -> string -> block-boxes;
+    introduction-footer   : context -> int -> int -> string -> string -> block-boxes;
     thanks-marks  : string list;
     footnote-mark : inline-text;
     font-info     : font-info;
@@ -503,7 +503,7 @@ end = struct
     show-footer   = true;
     show-header   = true;
     page-num      = arabic;
-    header        = fun _ _ _ _ -> block-nil;
+    header        = fun _ _ _ _ _ -> block-nil;
     footer        = default-footer;
     title-page    = false;
     bib-page      = false;
@@ -536,7 +536,7 @@ end = struct
       | Some(s) -> s
       | None -> `?`
     );
-    introduction-header   = fun _ _ _ _ -> block-nil;
+    introduction-header   = fun _ _ _ _ _ -> block-nil;
     introduction-footer   = default-footer;
     thanks-marks  = [`†`; `‡`; `*`];
     footnote-mark = {\ \*};
@@ -901,7 +901,19 @@ end = struct
         match get-cross-reference `start-page` with
         | None -> 1
         | Some (page-num) -> Int.of-string page-num
+
+      % 総ページ数を記録する
+      let register-last-page () =
+        hook-page-break-block (fun pbinfo _ -> (
+          register-cross-reference `last-page` (arabic pbinfo#page-number)
+        ))
   
+      % 総ページ数を取得する
+      let get-last-page () =
+        match get-cross-reference `last-page` with
+        | None -> 1
+        | Some (page-num) -> Int.of-string page-num
+
       % unit型
       % satysfi-auxファイルにkey-value形式で書きだされる
       % (label ^ `:num`)がkeyでtitleがvalue
@@ -1379,10 +1391,15 @@ end = struct
         else
           if pbinfo#page-number < start-page then
             let page-num-s = s#introduction-page-num page-num in
-            s#introduction-header ctx pbinfo#page-number page-num page-num-s
+            let last-page-s =
+              start-page - introduction-start-page + 1
+              |> s#introduction-page-num
+            in
+            s#introduction-header ctx pbinfo#page-number page-num page-num-s last-page-s
           else
             let page-num-s = s#page-num page-num in
-            s#header ctx pbinfo#page-number page-num page-num-s
+            let last-page-s = s#page-num (get-last-page () - start-page + 1) in
+            s#header ctx pbinfo#page-number page-num page-num-s last-page-s
       in
       let header-height = get-natural-length header in
       let float-top-len =
@@ -1408,7 +1425,7 @@ end = struct
         if
           List.any (fun i -> i == pbinfo#page-number) !ignore-header-footer-lst
           ||
-          not s#show-header
+          not s#show-footer
           ||
           pbinfo#page-number < introduction-start-page
         then
@@ -1416,10 +1433,15 @@ end = struct
         else
           if pbinfo#page-number < start-page then
             let page-num-s = s#introduction-page-num page-num in
-            s#introduction-header ctx pbinfo#page-number page-num page-num-s
+            let last-page-s =
+              start-page - introduction-start-page + 1
+              |> s#introduction-page-num
+            in
+            s#introduction-footer ctx pbinfo#page-number page-num page-num-s last-page-s
           else
             let page-num-s = s#page-num page-num in
-            s#footer ctx pbinfo#page-number page-num page-num-s
+            let last-page-s = s#page-num (get-last-page () - start-page + 1) in
+            s#footer ctx pbinfo#page-number page-num page-num-s last-page-s
       in
       let footer-height = get-natural-length footer in
       let float-bottom-len = get-natural-length bb-bottom in
@@ -1499,10 +1521,15 @@ end = struct
         else
           if pbinfo#page-number < start-page then
             let page-num-s = s#introduction-page-num page-num in
-            s#introduction-header ctx pbinfo#page-number page-num page-num-s
+            let last-page-s =
+              start-page - introduction-start-page + 1
+              |> s#introduction-page-num
+            in
+            s#introduction-header ctx pbinfo#page-number page-num page-num-s last-page-s
           else
             let page-num-s = s#page-num page-num in
-            s#header ctx pbinfo#page-number page-num page-num-s
+            let last-page-s = s#page-num (get-last-page () - start-page + 1) in
+            s#header ctx pbinfo#page-number page-num page-num-s last-page-s
       in
       let (float-top-bb, float-bottom-bb) =
         if s#show-title && pbinfo#page-number <= title-page-counter then
@@ -1556,10 +1583,15 @@ end = struct
         else
           if pbinfo#page-number < start-page then
             let page-num-s = s#introduction-page-num page-num in
-            s#introduction-footer ctx pbinfo#page-number page-num page-num-s
+            let last-page-s =
+              start-page - introduction-start-page + 1
+              |> s#introduction-page-num
+            in
+            s#introduction-footer ctx pbinfo#page-number page-num page-num-s last-page-s
           else
             let page-num-s = s#page-num page-num in
-            s#footer ctx pbinfo#page-number page-num page-num-s
+            let last-page-s = s#page-num (get-last-page () - start-page + 1) in
+            s#footer ctx pbinfo#page-number page-num page-num-s last-page-s
       in
       let footer =
         if get-natural-length (footer +++ float-bottom-bb) <' 0.01pt then
@@ -1667,6 +1699,8 @@ end = struct
     in
 
     let bb-last =
+      register-last-page ()
+      +++
       hook-page-break-block (fun _ _ -> (is-last-page <- true))
     in
 

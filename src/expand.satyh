@@ -585,7 +585,7 @@ end = struct
     )
 
 
-  let book-header-fun ctx all-page-num page-num page-num-str =
+  let book-header-fun ctx all-page-num page-num page-num-str last-page-num-str =
     let num-ib =
       page-num-str
       |> embed-string
@@ -611,9 +611,9 @@ end = struct
     |> set-appendix-toc-num-fun (fun l -> (if List.length l <= 3 then Some(book-appendix-num-fun l) else None))
     |> set-toc-headline-font-depth 2
     |> set-is-twoside true
-    |> set-footer (fun _ _ _ _ -> block-nil)
+    |> set-footer (fun _ _ _ _ _ -> block-nil)
     |> set-header book-header-fun
-    |> set-introduction-footer (fun _ _ _ _ -> block-nil)
+    |> set-introduction-footer (fun _ _ _ _ _ -> block-nil)
     |> set-introduction-header book-header-fun
     |> set-title-page true
 
@@ -629,9 +629,9 @@ end = struct
     |> set-appendix-toc-num-fun (fun l -> (if List.length l <= 3 then Some(book-appendix-num-fun l) else None))
     |> set-toc-headline-font-depth 2
     |> set-is-twoside true
-    |> set-footer (fun _ _ _ _ -> block-nil)
+    |> set-footer (fun _ _ _ _ _ -> block-nil)
     |> set-header book-header-fun
-    |> set-introduction-footer (fun _ _ _ _ -> block-nil)
+    |> set-introduction-footer (fun _ _ _ _ _ -> block-nil)
     |> set-introduction-header book-header-fun
     |> set-title-page true
 
