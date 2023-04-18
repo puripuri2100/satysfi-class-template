@@ -76,8 +76,8 @@ module ClassTemplateExpand : sig
   val article-line-style-title-deco :
     context ->
     bool ->
-    inline-boxes ->
-    inline-boxes ->
+    (ClassTemplate.title-position -> inline-boxes) ->
+    (ClassTemplate.title-position -> inline-boxes) ->
     inline-boxes option ->
     (context -> block-boxes) option ->
     (float * block-boxes) list
@@ -89,8 +89,8 @@ module ClassTemplateExpand : sig
   %val book-style-title-deco :
   %  context ->
   %  bool ->
-  %  inline-boxes ->
-  %  inline-boxes ->
+  %  (ClassTemplate.title-position -> inline-boxes) ->
+  %  (ClassTemplate.title-position -> inline-boxes) ->
   %  inline-boxes option ->
   %  (context -> block-boxes) option ->
   %  (float * block-boxes) list
@@ -488,11 +488,12 @@ end = struct
         in
         let gap1 = block-skip (fs *' 1.0) in
         let gap2 = block-skip (fs *' 0.8) in
-        let author = f ctx author in
+        let title = f ctx (title ClassTemplate.title-center) in
+        let author = f ctx (author ClassTemplate.title-center) in
         if get-natural-length author <' 0.01pt && Option.is-none date-opt then
-          gap1 +++ (f ctx title) +++ gap1
+          gap1 +++ title +++ gap1
         else
-          let bb = gap1 +++ (f ctx title) +++ gap1 +++ line-bb +++ gap1 +++ author in
+          let bb = gap1 +++ title +++ gap1 +++ line-bb +++ gap1 +++ author in
           match date-opt with
           | Some(ib) -> bb +++ gap2 +++ (f ctx ib) +++ gap1
           | None -> bb +++ gap1
