@@ -17,6 +17,7 @@
     ((dist ()) ; Standard library
      (base ()) ; Base library
      (num-conversion ())
+     (json ())
     )))
 
 ;; Library doc declaration

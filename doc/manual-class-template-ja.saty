@@ -501,7 +501,21 @@ in`);のように書いて事前に展開していると良いでしょう。}
         * \sci(`set-introduction-page-num : int -> string`);
         * \sci(`set-page-num : int -> string`);
       }という関数で設定します。導入部のところでローマ数字にしたい場合にはnum-conversionパッケージ\footnote{\url(`https://github.com/puripuri2100/SATySFi-num-conversion`);}で提供される\sci(`to-roman-lower : int -> string option`);関数を用いるなどすると良いでしょう。}
-      +p{ページ番号やタイトルなどの情報を表示するヘッダーとフッターを}
+      +p{ページ番号などの情報を表示するヘッダーとフッターを設定するには導入部用のものと本文用のものとでそれぞれ\listing{
+        * \sci(`set-introduction-header`);
+        * \sci(`set-introduction-footer`);
+        * \sci(`set-header`);
+        * \sci(`set-footer`);
+      }という関数を用います。型はどれも\sci(`context -> int -> int -> string -> string -> block-boxes`);です。引数は順に\enumerate{
+        * context
+        * 現在のページ数
+        * 導入部もしくは本文の先頭からのページ数
+        * 表示するべきページ番号
+        * 総ページ番号
+      }です。基本的には4つめの「表示するべきページ番号」を使ってページ番号を表示させます。ページ番号の偶奇によって体裁を帰る場合には\listing{
+        * 現在のページ数
+        * 導入部もしくは本文の先頭からのページ数
+      }のいずれかを用います。}
     >
     +section {節見出しのデザイン} <>
     +section {付録のデザイン} <>
