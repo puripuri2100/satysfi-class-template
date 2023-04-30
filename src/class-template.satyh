@@ -1906,7 +1906,10 @@ end = struct
     in
     let is-open = depth < (!setting-ref)#outline-depth in
     let outline-num =
-      (!setting-ref)#appendix-title ^ #` `# ^ num ^ #` `# ^ outline-title
+      if is-appendix then
+        (!setting-ref)#appendix-title ^ #` `# ^ num ^ #` `# ^ outline-title
+      else
+        num ^ #` `# ^ outline-title
     in
     let () =
       outline-ref <- (depth, outline-num, label, is-open) :: !outline-ref
